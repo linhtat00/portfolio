@@ -44,9 +44,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       case 'skills':
         output = (
           <div className="text-zinc-300 space-y-0.5 font-mono text-[11px]">
-            <p><span className="text-primary-val">SIEM/EDR:</span> Splunk Enterprise Security, Elastic SIEM, Sysmon</p>
-            <p><span className="text-primary-val">Toolkits:</span> Volatility 3, Autopsy, KAPE, Wireshark, Zeek, FTK Imager, Burpsuite</p>
-            <p><span className="text-primary-val">Languages:</span> Python 3, Bash, PowerShell, Splunk SPL, KQL, C++</p>
+            <p><span className="text-primary-val">siem_edr</span>: ["Wazuh", "Elastic SIEM", "Sysmon"]</p>
+            <p><span className="text-primary-val">forensics</span>: ["Volatility 3", "Autopsy", "KAPE", "Wireshark", "Zeek"]</p>
+            <p><span className="text-primary-val">languages</span>: ["Python", "PowerShell", "KQL", "Bash", "Sigma"]</p>
           </div>
         );
         break;

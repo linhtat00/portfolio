@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Writeup, ActiveTab } from './types';
 import { INITIAL_WRITEUPS } from './data/writeups';
+import { INITIAL_LABS } from './data/labs';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { StatsBar } from './components/StatsBar';
@@ -19,114 +20,159 @@ const getBasePath = (): string => {
   if (typeof window === 'undefined') return '';
   const pathname = window.location.pathname;
   const segments = pathname.split('/').filter(Boolean);
-  const knownRoutes = ['writeup', 'writeups', 'lab', 'labs', 'about', 'upload', 'resources', 'api'];
+  const knownRoutes = ['writeup', 'writeups', 'lab', 'labs', 'about', 'homelab', 'resources', 'api'];
   if (segments.length > 0 && !knownRoutes.includes(segments[0].toLowerCase())) {
     return '/' + segments[0]; // e.g. '/portfolio' on GitHub Pages (linhtat00.github.io/portfolio)
   }
   return '';
 };
 
-// Helper: Parse route from pathname, search queries, and hash
-const parseRouteFromLocation = (writeupList: Writeup[]): {
+interface ParsedRoute {
   tab: ActiveTab;
   writeup: Writeup | null;
   labSlug: string | null;
-  isUpload: boolean;
-} => {
+  isInvalid: boolean;
+}
+
+// Helper: Parse and validate routes strictly. If any route is non-existent, mark as isInvalid: true.
+const parseRouteFromLocation = (writeupList: Writeup[]): ParsedRoute => {
   if (typeof window === 'undefined') {
-    return { tab: 'home', writeup: null, labSlug: null, isUpload: false };
+    return { tab: 'home', writeup: null, labSlug: null, isInvalid: false };
   }
 
-  const path = window.location.pathname.toLowerCase();
+  const base = getBasePath().toLowerCase();
+  let path = window.location.pathname.toLowerCase();
+  
+  // Strip base prefix if present
+  if (base && path.startsWith(base)) {
+    path = path.slice(base.length);
+  }
+  
   const search = new URLSearchParams(window.location.search);
-  const rawHash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
-
-  // 1. Upload CMS check
-  if (path.includes('/upload') || rawHash === 'upload' || rawHash.startsWith('upload/') || search.get('portal') === 'upload') {
-    return { tab: 'home', writeup: null, labSlug: null, isUpload: true };
-  }
-
-  // 2. Query parameter checks (?writeup=... or ?lab=... or ?tab=...)
-  const qWriteup = search.get('writeup');
-  if (qWriteup) {
-    const found = writeupList.find(w => 
-      w.id.toLowerCase() === qWriteup.toLowerCase() || 
-      (w.slug && w.slug.toLowerCase() === qWriteup.toLowerCase())
-    );
-    if (found) {
-      return { tab: 'writeups', writeup: found, labSlug: null, isUpload: false };
-    }
-  }
-
-  const qLab = search.get('lab') || search.get('labs');
-  if (qLab) {
-    return { tab: 'labs', writeup: null, labSlug: qLab, isUpload: false };
-  }
-
-  if (search.get('tab') === 'about') return { tab: 'about', writeup: null, labSlug: null, isUpload: false };
-  if (search.get('tab') === 'labs') return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
-  if (search.get('tab') === 'writeups') return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
-
-  // 3. Hash-based routing check (#/writeup/id, #/lab/slug, #/about, #/writeups, #/labs)
-  if (rawHash.startsWith('writeup/') || rawHash.startsWith('writeups/')) {
-    const id = rawHash.replace(/^writeups?\//, '').trim();
-    if (id) {
-      const found = writeupList.find(w => 
-        w.id.toLowerCase() === id.toLowerCase() || 
-        (w.slug && w.slug.toLowerCase() === id.toLowerCase())
-      );
-      return { tab: 'writeups', writeup: found || null, labSlug: null, isUpload: false };
-    }
-    return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
-  }
-
-  if (rawHash.startsWith('lab/') || rawHash.startsWith('labs/')) {
-    const slug = rawHash.replace(/^labs?\//, '').trim();
-    return { tab: 'labs', writeup: null, labSlug: slug || null, isUpload: false };
-  }
-
-  if (rawHash === 'about') return { tab: 'about', writeup: null, labSlug: null, isUpload: false };
-  if (rawHash === 'labs' || rawHash === 'homelab') return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
-  if (rawHash === 'writeups') return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
-
-  // 4. Pathname segment check (works with /writeup/:id or /portfolio/writeup/:id)
+  const rawHash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim();
   const segments = path.split('/').filter(Boolean);
 
-  const writeupIndex = segments.findIndex(s => s === 'writeup' || s === 'writeups');
-  if (writeupIndex !== -1) {
-    const id = segments[writeupIndex + 1];
-    if (id) {
+  // 1. Query parameter checks (?tab=... or ?writeup=... or ?lab=...)
+  if (window.location.search) {
+    const qWriteup = search.get('writeup');
+    if (qWriteup) {
       const found = writeupList.find(w => 
-        w.id.toLowerCase() === id.toLowerCase() || 
-        (w.slug && w.slug.toLowerCase() === id.toLowerCase())
+        w.id.toLowerCase() === qWriteup.toLowerCase() || 
+        (w.slug && w.slug.toLowerCase() === qWriteup.toLowerCase())
       );
-      return { tab: 'writeups', writeup: found || null, labSlug: null, isUpload: false };
+      if (found) {
+        return { tab: 'writeups', writeup: found, labSlug: null, isInvalid: false };
+      }
+      return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
     }
-    return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
-  }
 
-  const labIndex = segments.findIndex(s => s === 'lab' || s === 'labs');
-  if (labIndex !== -1) {
-    const slug = segments[labIndex + 1];
-    if (slug) {
-      return { tab: 'labs', writeup: null, labSlug: slug, isUpload: false };
+    const qLab = search.get('lab') || search.get('labs');
+    if (qLab) {
+      const labExists = INITIAL_LABS.some(l => l.slug.toLowerCase() === qLab.toLowerCase());
+      if (labExists) {
+        return { tab: 'labs', writeup: null, labSlug: qLab, isInvalid: false };
+      }
+      return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
     }
-    return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
+
+    const qTab = search.get('tab');
+    if (qTab === 'about') return { tab: 'about', writeup: null, labSlug: null, isInvalid: false };
+    if (qTab === 'labs') return { tab: 'labs', writeup: null, labSlug: null, isInvalid: false };
+    if (qTab === 'writeups') return { tab: 'writeups', writeup: null, labSlug: null, isInvalid: false };
+    if (qTab === 'home') return { tab: 'home', writeup: null, labSlug: null, isInvalid: false };
+
+    // Any other unrecognized query param with no other path is invalid
+    if (segments.length === 0 && !rawHash) {
+      return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
+    }
   }
 
-  if (segments.some(s => s === 'about')) {
-    return { tab: 'about', writeup: null, labSlug: null, isUpload: false };
+  // 2. Hash-based routing checks (#/about, #/writeups, #/labs, #/writeup/:id, #/lab/:slug)
+  if (rawHash) {
+    if (rawHash === 'about') return { tab: 'about', writeup: null, labSlug: null, isInvalid: false };
+    if (rawHash === 'labs' || rawHash === 'homelab') return { tab: 'labs', writeup: null, labSlug: null, isInvalid: false };
+    if (rawHash === 'writeups') return { tab: 'writeups', writeup: null, labSlug: null, isInvalid: false };
+    if (rawHash === '' || rawHash === '/') return { tab: 'home', writeup: null, labSlug: null, isInvalid: false };
+
+    if (rawHash.startsWith('writeup/') || rawHash.startsWith('writeups/')) {
+      const id = rawHash.replace(/^writeups?\//, '').trim();
+      if (id) {
+        const found = writeupList.find(w => 
+          w.id.toLowerCase() === id.toLowerCase() || 
+          (w.slug && w.slug.toLowerCase() === id.toLowerCase())
+        );
+        if (found) {
+          return { tab: 'writeups', writeup: found, labSlug: null, isInvalid: false };
+        }
+      }
+      return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
+    }
+
+    if (rawHash.startsWith('lab/') || rawHash.startsWith('labs/')) {
+      const slug = rawHash.replace(/^labs?\//, '').trim();
+      if (slug) {
+        const labExists = INITIAL_LABS.some(l => l.slug.toLowerCase() === slug.toLowerCase());
+        if (labExists) {
+          return { tab: 'labs', writeup: null, labSlug: slug, isInvalid: false };
+        }
+      }
+      return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
+    }
+
+    // Unrecognized hash
+    return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
   }
 
-  if (segments.some(s => s === 'homelab')) {
-    return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
+  // 3. Pathname routing checks
+  // Empty or root path "/"
+  if (segments.length === 0) {
+    return { tab: 'home', writeup: null, labSlug: null, isInvalid: false };
   }
 
-  return { tab: 'home', writeup: null, labSlug: null, isUpload: false };
+  // /about
+  if (segments.length === 1 && segments[0] === 'about') {
+    return { tab: 'about', writeup: null, labSlug: null, isInvalid: false };
+  }
+
+  // /labs or /homelab
+  if (segments.length === 1 && (segments[0] === 'labs' || segments[0] === 'homelab')) {
+    return { tab: 'labs', writeup: null, labSlug: null, isInvalid: false };
+  }
+
+  // /labs/:slug or /lab/:slug
+  if (segments.length === 2 && (segments[0] === 'labs' || segments[0] === 'lab')) {
+    const slug = segments[1];
+    const labExists = INITIAL_LABS.some(l => l.slug.toLowerCase() === slug.toLowerCase());
+    if (labExists) {
+      return { tab: 'labs', writeup: null, labSlug: slug, isInvalid: false };
+    }
+    return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
+  }
+
+  // /writeups
+  if (segments.length === 1 && segments[0] === 'writeups') {
+    return { tab: 'writeups', writeup: null, labSlug: null, isInvalid: false };
+  }
+
+  // /writeup/:idOrSlug or /writeups/:idOrSlug
+  if (segments.length === 2 && (segments[0] === 'writeup' || segments[0] === 'writeups')) {
+    const id = segments[1];
+    const found = writeupList.find(w => 
+      w.id.toLowerCase() === id.toLowerCase() || 
+      (w.slug && w.slug.toLowerCase() === id.toLowerCase())
+    );
+    if (found) {
+      return { tab: 'writeups', writeup: found, labSlug: null, isInvalid: false };
+    }
+    return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
+  }
+
+  // 4. Any other route (e.g. /upload, /uploads, /anything-invalid)
+  return { tab: 'home', writeup: null, labSlug: null, isInvalid: true };
 };
 
 export default function App() {
-  const [writeups, setWriteups] = useState<Writeup[]>(() => {
+  const [writeups] = useState<Writeup[]>(() => {
     try {
       const saved = localStorage.getItem('blue_team_writeups');
       if (saved) {
@@ -138,10 +184,20 @@ export default function App() {
     return INITIAL_WRITEUPS;
   });
 
-  // Initialize initial route from location
+  // Parse initial route on load
   const initialRoute = parseRouteFromLocation(writeups);
 
-  const [isUploadPortal, setIsUploadPortal] = useState<boolean>(initialRoute.isUpload);
+  // If initial route is invalid, reset URL to clean Home URL immediately
+  if (initialRoute.isInvalid && typeof window !== 'undefined') {
+    const base = getBasePath();
+    const homeUrl = base ? `${base}/` : '/';
+    try {
+      window.history.replaceState(null, '', homeUrl);
+    } catch (e) {
+      window.location.hash = '';
+    }
+  }
+
   const [activeTab, setActiveTab] = useState<ActiveTab>(initialRoute.tab);
   const [selectedWriteup, setSelectedWriteup] = useState<Writeup | null>(initialRoute.writeup);
   const [selectedLabSlug, setSelectedLabSlug] = useState<string | null>(initialRoute.labSlug);
@@ -149,10 +205,32 @@ export default function App() {
   // Modals
   const [isResumeOpen, setIsResumeOpen] = useState(false);
 
+  // Helper to update browser URL bar
+  const updateRoute = (path: string) => {
+    try {
+      const base = getBasePath();
+      const fullPath = base ? `${base}${path}` : path;
+      window.history.pushState(null, '', fullPath);
+    } catch (e) {
+      window.location.hash = path;
+    }
+  };
+
   // Listen to browser navigation (back/forward & hash changes)
   const syncRouteFromBrowser = useCallback(() => {
     const route = parseRouteFromLocation(writeups);
-    setIsUploadPortal(route.isUpload);
+    
+    // If user navigated to an invalid route, redirect URL back to clean Home
+    if (route.isInvalid) {
+      const base = getBasePath();
+      const homeUrl = base ? `${base}/` : '/';
+      try {
+        window.history.replaceState(null, '', homeUrl);
+      } catch (e) {
+        window.location.hash = '';
+      }
+    }
+
     setActiveTab(route.tab);
     setSelectedWriteup(route.writeup);
     setSelectedLabSlug(route.labSlug);
@@ -166,63 +244,6 @@ export default function App() {
       window.removeEventListener('hashchange', syncRouteFromBrowser);
     };
   }, [syncRouteFromBrowser]);
-
-  // Persist writeups on change
-  useEffect(() => {
-    try {
-      localStorage.setItem('blue_team_writeups', JSON.stringify(writeups));
-    } catch (e) {
-      console.warn('Failed to save writeups to localStorage', e);
-    }
-  }, [writeups]);
-
-  // Update browser URL with base-path awareness
-  const updateRoute = (path: string) => {
-    try {
-      const base = getBasePath();
-      const fullPath = base ? `${base}${path}` : path;
-      window.history.pushState(null, '', fullPath);
-    } catch (e) {
-      window.location.hash = path;
-    }
-  };
-
-  // Routing actions
-  const navigateToUpload = () => {
-    updateRoute('/upload');
-    setIsUploadPortal(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const navigateToPublic = () => {
-    updateRoute('/');
-    setIsUploadPortal(false);
-    setSelectedWriteup(null);
-    setSelectedLabSlug(null);
-    setActiveTab('home');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // CMS: Handle saving (create or update) writeup
-  const handleSaveWriteup = (savedWriteup: Writeup) => {
-    setWriteups((prev) => {
-      const existsIndex = prev.findIndex((item) => item.id === savedWriteup.id);
-      if (existsIndex >= 0) {
-        const updated = [...prev];
-        updated[existsIndex] = savedWriteup;
-        return updated;
-      }
-      return [savedWriteup, ...prev];
-    });
-  };
-
-  // CMS: Handle deleting writeup
-  const handleDeleteWriteup = (id: string) => {
-    setWriteups((prev) => prev.filter((item) => item.id !== id));
-    if (selectedWriteup?.id === id) {
-      setSelectedWriteup(null);
-    }
-  };
 
   // Showcase Navigation
   const handleSelectWriteup = (w: Writeup) => {
@@ -263,7 +284,7 @@ export default function App() {
   // PUBLIC SHOWCASE PORTFOLIO (www.myportfolio.io)
   return (
     <div className="app-root">
-      {/* Top Fixed Header - Showcase Only */}
+      {/* Top Fixed Header */}
       <Header
         activeTab={selectedWriteup ? 'writeups' : activeTab}
         setActiveTab={handleTabChange}
@@ -281,7 +302,7 @@ export default function App() {
             allWriteups={writeups}
           />
         ) : activeTab === 'writeups' ? (
-          /* View 2: /writeup Overview Blog Catalog Page (Showcase) */
+          /* View 2: /writeup Overview Blog Catalog Page */
           <WriteupOverviewView
             writeups={writeups}
             onSelectWriteup={handleSelectWriteup}
