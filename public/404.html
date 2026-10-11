@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Linh Tat | Blue Team & DFIR Portfolio</title>
+    <script>
+      // Single Page Apps for GitHub Pages SPA Redirect
+      // Supports direct linking to /writeups, /writeup/:id, /labs, /labs/:slug, /about
+      var isGitHubPagesRepo = window.location.hostname.endsWith('github.io');
+      var pathSegments = window.location.pathname.split('/').filter(Boolean);
+      var pathSegmentsToKeep = (isGitHubPagesRepo && pathSegments.length > 0) ? 1 : 0;
+
+      var l = window.location;
+      var repoBase = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/');
+      var routePath = l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/');
+      
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        repoBase + '/?/' +
+        routePath.replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body style="background: #0c0c0e; color: #fbbf24; font-family: monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <p>~/linh@analyst:$ redirecting_route ...</p>
+  </body>
+</html>

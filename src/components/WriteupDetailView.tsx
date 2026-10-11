@@ -150,15 +150,24 @@ ${writeup.content}
               <span>Back to Overview</span>
             </button>
 
-            <span className="text-zinc-600 font-mono text-xs hidden sm:inline">|</span>
+            <span className="text-zinc-600 font-mono text-xs hidden sm:inline">/</span>
 
             <div className="font-mono text-xs text-muted-val truncate">
-              <span className="text-primary-val">~/linh@analyst:$</span> cat /writeups/{writeup.id}.md
+              <span className="text-primary-val">~/linh@analyst:$</span> cat /writeups/{writeup.slug || writeup.id}.md
             </div>
           </div>
 
           {/* Action buttons */}
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportMarkdown}
+              className="writeup-action-btn"
+              title="Download raw markdown file"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export .md</span>
+            </button>
+
             <button
               onClick={handleShare}
               className="writeup-action-btn"

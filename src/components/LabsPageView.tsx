@@ -24,12 +24,14 @@ interface LabsPageViewProps {
   onExploreWriteups: () => void;
   onOpenResume: () => void;
   initialSelectedLabSlug?: string | null;
+  onSelectLab?: (slug: string | null) => void;
 }
 
 export const LabsPageView: React.FC<LabsPageViewProps> = ({
   onBackToHome,
   onExploreWriteups,
-  initialSelectedLabSlug = null
+  initialSelectedLabSlug = null,
+  onSelectLab
 }) => {
   const [labs] = useState<LabProject[]>(INITIAL_LABS);
   const [selectedLabSlug, setSelectedLabSlug] = useState<string | null>(initialSelectedLabSlug);
@@ -38,8 +40,8 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
 
   useEffect(() => {
+    setSelectedLabSlug(initialSelectedLabSlug || null);
     if (initialSelectedLabSlug) {
-      setSelectedLabSlug(initialSelectedLabSlug);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [initialSelectedLabSlug]);
@@ -119,7 +121,10 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
           <div className="flex items-center gap-3">
             {activeLab ? (
               <button
-                onClick={() => setSelectedLabSlug(null)}
+                onClick={() => {
+                  setSelectedLabSlug(null);
+                  onSelectLab?.(null);
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-container-val border border-surface-val hover:border-amber-400 text-zinc-300 hover:text-primary-val font-mono text-xs transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -128,7 +133,7 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
             ) : (
               <button
                 onClick={onBackToHome}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#18181c] border border-[#27272a] hover:border-[#fbbf24] text-zinc-300 hover:text-[#fbbf24] font-['JetBrains_Mono'] text-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-container-val border border-surface-val hover:border-amber-400 text-zinc-300 hover:text-primary-val font-mono text-xs transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Home</span>
@@ -138,7 +143,7 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
             <span className="text-zinc-600 font-mono text-xs hidden sm:inline">/</span>
 
             <div className="font-mono text-xs text-muted-val truncate">
-              <span className="text-primary-val">~/linh@analyst:$</span>{' '}
+              <span className="text-primary-val">~/linh@soc-ranges:$</span>{' '}
               {activeLab ? `cat /labs/${activeLab.slug}.spec` : 'ls -la /labs/projects'}
             </div>
           </div>
@@ -490,7 +495,10 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
               {filteredLabs.map((lab) => (
                 <div
                   key={lab.id}
-                  onClick={() => setSelectedLabSlug(lab.slug)}
+                  onClick={() => {
+                    setSelectedLabSlug(lab.slug);
+                    onSelectLab?.(lab.slug);
+                  }}
                   className="lab-card group"
                 >
                   <div className="space-y-3.5">

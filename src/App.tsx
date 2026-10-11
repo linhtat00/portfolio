@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Writeup, ActiveTab } from './types';
 import { INITIAL_WRITEUPS } from './data/writeups';
 import { Header } from './components/Header';
@@ -11,90 +11,276 @@ import { WriteupDetailView } from './components/WriteupDetailView';
 import { WriteupOverviewView } from './components/WriteupOverviewView';
 import { AboutPageView } from './components/AboutPageView';
 import { LabsPageView } from './components/LabsPageView';
+import { UploadCMSPortal } from './components/UploadCMSPortal';
 import { ResumeModal } from './components/ResumeModal';
 import { Footer } from './components/Footer';
 
+// Helper: Detect base repository path on GitHub Pages (e.g. '/portfolio')
+const getBasePath = (): string => {
+  if (typeof window === 'undefined') return '';
+  const pathname = window.location.pathname;
+  const segments = pathname.split('/').filter(Boolean);
+  const knownRoutes = ['writeup', 'writeups', 'lab', 'labs', 'about', 'upload', 'resources', 'api'];
+  if (segments.length > 0 && !knownRoutes.includes(segments[0].toLowerCase())) {
+    return '/' + segments[0]; // e.g. '/portfolio' on GitHub Pages (linhtat00.github.io/portfolio)
+  }
+  return '';
+};
+
+// Helper: Parse route from pathname, search queries, and hash
+const parseRouteFromLocation = (writeupList: Writeup[]): {
+  tab: ActiveTab;
+  writeup: Writeup | null;
+  labSlug: string | null;
+  isUpload: boolean;
+} => {
+  if (typeof window === 'undefined') {
+    return { tab: 'home', writeup: null, labSlug: null, isUpload: false };
+  }
+
+  const path = window.location.pathname.toLowerCase();
+  const search = new URLSearchParams(window.location.search);
+  const rawHash = window.location.hash.toLowerCase().replace(/^#\/?/, '');
+
+  // 1. Upload CMS check
+  if (path.includes('/upload') || rawHash === 'upload' || rawHash.startsWith('upload/') || search.get('portal') === 'upload') {
+    return { tab: 'home', writeup: null, labSlug: null, isUpload: true };
+  }
+
+  // 2. Query parameter checks (?writeup=... or ?lab=... or ?tab=...)
+  const qWriteup = search.get('writeup');
+  if (qWriteup) {
+    const found = writeupList.find(w => 
+      w.id.toLowerCase() === qWriteup.toLowerCase() || 
+      (w.slug && w.slug.toLowerCase() === qWriteup.toLowerCase())
+    );
+    if (found) {
+      return { tab: 'writeups', writeup: found, labSlug: null, isUpload: false };
+    }
+  }
+
+  const qLab = search.get('lab') || search.get('labs');
+  if (qLab) {
+    return { tab: 'labs', writeup: null, labSlug: qLab, isUpload: false };
+  }
+
+  if (search.get('tab') === 'about') return { tab: 'about', writeup: null, labSlug: null, isUpload: false };
+  if (search.get('tab') === 'labs') return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
+  if (search.get('tab') === 'writeups') return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
+
+  // 3. Hash-based routing check (#/writeup/id, #/lab/slug, #/about, #/writeups, #/labs)
+  if (rawHash.startsWith('writeup/') || rawHash.startsWith('writeups/')) {
+    const id = rawHash.replace(/^writeups?\//, '').trim();
+    if (id) {
+      const found = writeupList.find(w => 
+        w.id.toLowerCase() === id.toLowerCase() || 
+        (w.slug && w.slug.toLowerCase() === id.toLowerCase())
+      );
+      return { tab: 'writeups', writeup: found || null, labSlug: null, isUpload: false };
+    }
+    return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
+  }
+
+  if (rawHash.startsWith('lab/') || rawHash.startsWith('labs/')) {
+    const slug = rawHash.replace(/^labs?\//, '').trim();
+    return { tab: 'labs', writeup: null, labSlug: slug || null, isUpload: false };
+  }
+
+  if (rawHash === 'about') return { tab: 'about', writeup: null, labSlug: null, isUpload: false };
+  if (rawHash === 'labs' || rawHash === 'homelab') return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
+  if (rawHash === 'writeups') return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
+
+  // 4. Pathname segment check (works with /writeup/:id or /portfolio/writeup/:id)
+  const segments = path.split('/').filter(Boolean);
+
+  const writeupIndex = segments.findIndex(s => s === 'writeup' || s === 'writeups');
+  if (writeupIndex !== -1) {
+    const id = segments[writeupIndex + 1];
+    if (id) {
+      const found = writeupList.find(w => 
+        w.id.toLowerCase() === id.toLowerCase() || 
+        (w.slug && w.slug.toLowerCase() === id.toLowerCase())
+      );
+      return { tab: 'writeups', writeup: found || null, labSlug: null, isUpload: false };
+    }
+    return { tab: 'writeups', writeup: null, labSlug: null, isUpload: false };
+  }
+
+  const labIndex = segments.findIndex(s => s === 'lab' || s === 'labs');
+  if (labIndex !== -1) {
+    const slug = segments[labIndex + 1];
+    if (slug) {
+      return { tab: 'labs', writeup: null, labSlug: slug, isUpload: false };
+    }
+    return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
+  }
+
+  if (segments.some(s => s === 'about')) {
+    return { tab: 'about', writeup: null, labSlug: null, isUpload: false };
+  }
+
+  if (segments.some(s => s === 'homelab')) {
+    return { tab: 'labs', writeup: null, labSlug: null, isUpload: false };
+  }
+
+  return { tab: 'home', writeup: null, labSlug: null, isUpload: false };
+};
+
 export default function App() {
-  const [writeups] = useState<Writeup[]>(INITIAL_WRITEUPS);
-
- // 1. Define the GitHub Pages repository base path
-  const BASE_PATH = '/portfolio';
-
-  // 2. Helper function to normalize the URL path
-  const getNormalizedPath = () => {
-    let path = window.location.pathname.toLowerCase();
-    if (path.startsWith(BASE_PATH)) {
-      path = path.slice(BASE_PATH.length) || '/';
+  const [writeups, setWriteups] = useState<Writeup[]>(() => {
+    try {
+      const saved = localStorage.getItem('blue_team_writeups');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Failed to load local writeups', e);
     }
-    return path;
-  };
-
-  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
-    if (typeof window !== 'undefined') {
-      const path = getNormalizedPath();
-      if (path === '/about' || path.startsWith('/about')) return 'about';
-      if (path === '/labs' || path.startsWith('/labs') || path === '/homelab' || path.startsWith('/homelab')) return 'labs';
-      if (path === '/writeups' || path.startsWith('/writeup')) return 'writeups';
-    }
-    return 'home';
+    return INITIAL_WRITEUPS;
   });
 
-  const [selectedWriteup, setSelectedWriteup] = useState<Writeup | null>(null);
-  const [selectedLabSlug, setSelectedLabSlug] = useState<string | null>(null);
+  // Initialize initial route from location
+  const initialRoute = parseRouteFromLocation(writeups);
 
+  const [isUploadPortal, setIsUploadPortal] = useState<boolean>(initialRoute.isUpload);
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialRoute.tab);
+  const [selectedWriteup, setSelectedWriteup] = useState<Writeup | null>(initialRoute.writeup);
+  const [selectedLabSlug, setSelectedLabSlug] = useState<string | null>(initialRoute.labSlug);
+
+  // Modals
   const [isResumeOpen, setIsResumeOpen] = useState(false);
 
+  // Listen to browser navigation (back/forward & hash changes)
+  const syncRouteFromBrowser = useCallback(() => {
+    const route = parseRouteFromLocation(writeups);
+    setIsUploadPortal(route.isUpload);
+    setActiveTab(route.tab);
+    setSelectedWriteup(route.writeup);
+    setSelectedLabSlug(route.labSlug);
+  }, [writeups]);
+
   useEffect(() => {
-    const handleLocationChange = () => {
-      const path = getNormalizedPath();
-      
-      if (path === '/about') {
-        setActiveTab('about');
-        setSelectedWriteup(null);
-      } else if (path === '/labs' || path === '/homelab') {
-        setActiveTab('labs');
-        setSelectedWriteup(null);
-      } else if (path === '/writeups') {
-        setActiveTab('writeups');
-      } else if (path === '/' || path === '') {
-        setActiveTab('home');
-      }
+    window.addEventListener('popstate', syncRouteFromBrowser);
+    window.addEventListener('hashchange', syncRouteFromBrowser);
+    return () => {
+      window.removeEventListener('popstate', syncRouteFromBrowser);
+      window.removeEventListener('hashchange', syncRouteFromBrowser);
     };
+  }, [syncRouteFromBrowser]);
 
-    window.addEventListener('popstate', handleLocationChange);
-    return () => window.removeEventListener('popstate', handleLocationChange);
-  }, []);
+  // Persist writeups on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('blue_team_writeups', JSON.stringify(writeups));
+    } catch (e) {
+      console.warn('Failed to save writeups to localStorage', e);
+    }
+  }, [writeups]);
 
+  // Update browser URL with base-path awareness
+  const updateRoute = (path: string) => {
+    try {
+      const base = getBasePath();
+      const fullPath = base ? `${base}${path}` : path;
+      window.history.pushState(null, '', fullPath);
+    } catch (e) {
+      window.location.hash = path;
+    }
+  };
+
+  // Routing actions
+  const navigateToUpload = () => {
+    updateRoute('/upload');
+    setIsUploadPortal(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToPublic = () => {
+    updateRoute('/');
+    setIsUploadPortal(false);
+    setSelectedWriteup(null);
+    setSelectedLabSlug(null);
+    setActiveTab('home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // CMS: Handle saving (create or update) writeup
+  const handleSaveWriteup = (savedWriteup: Writeup) => {
+    setWriteups((prev) => {
+      const existsIndex = prev.findIndex((item) => item.id === savedWriteup.id);
+      if (existsIndex >= 0) {
+        const updated = [...prev];
+        updated[existsIndex] = savedWriteup;
+        return updated;
+      }
+      return [savedWriteup, ...prev];
+    });
+  };
+
+  // CMS: Handle deleting writeup
+  const handleDeleteWriteup = (id: string) => {
+    setWriteups((prev) => prev.filter((item) => item.id !== id));
+    if (selectedWriteup?.id === id) {
+      setSelectedWriteup(null);
+    }
+  };
+
+  // Showcase Navigation
   const handleSelectWriteup = (w: Writeup) => {
     setSelectedWriteup(w);
+    setActiveTab('writeups');
+    updateRoute(`/writeup/${w.slug || w.id}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBackFromDetail = () => {
     setSelectedWriteup(null);
+    setActiveTab('writeups');
+    updateRoute('/writeups');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSelectLab = (slug: string | null) => {
+    setSelectedLabSlug(slug);
+    setActiveTab('labs');
+    if (slug) {
+      updateRoute(`/labs/${slug}`);
+    } else {
+      updateRoute('/labs');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleTabChange = (tab: ActiveTab) => {
     setSelectedWriteup(null);
+    setSelectedLabSlug(null);
     setActiveTab(tab);
     
-    try {
-      // 3. Prepend BASE_PATH when pushing to browser history
-      const newPath = tab === 'home' ? `${BASE_PATH}/` : `${BASE_PATH}/${tab}`;
-      window.history.pushState(null, '', newPath);
-    } catch (e) {
-      // ignore
-    }
-
+    const targetPath = tab === 'home' ? '/' : `/${tab}`;
+    updateRoute(targetPath);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
- 
 
-  // PUBLIC SHOWCASE PORTFOLIO (Pure Read-Only, 100% Static & Secure)
+  // If in dedicated CMS Portal (/upload)
+  if (isUploadPortal) {
+    return (
+      <UploadCMSPortal
+        writeups={writeups}
+        onSaveWriteup={handleSaveWriteup}
+        onDeleteWriteup={handleDeleteWriteup}
+        onExitToPublic={navigateToPublic}
+        onViewWriteupInPublic={(w) => {
+          navigateToPublic();
+          handleSelectWriteup(w);
+        }}
+      />
+    );
+  }
+
+  // PUBLIC SHOWCASE PORTFOLIO (www.myportfolio.io)
   return (
     <div className="app-root">
-      {/* Top Fixed Header */}
+      {/* Top Fixed Header - Showcase Only */}
       <Header
         activeTab={selectedWriteup ? 'writeups' : activeTab}
         setActiveTab={handleTabChange}
@@ -125,21 +311,16 @@ export default function App() {
             onOpenResume={() => setIsResumeOpen(true)}
             onExploreWriteups={() => handleTabChange('writeups')}
             onExploreHomelab={() => handleTabChange('labs')}
-            onExploreLabs={(labSlug) => {
-              setSelectedLabSlug(labSlug || null);
-              handleTabChange('labs');
-            }}
+            onExploreLabs={(labSlug) => handleSelectLab(labSlug || null)}
           />
         ) : activeTab === 'labs' ? (
           /* View 4: /labs Dedicated Academic, Cert & Engineering Ranges Page */
           <LabsPageView
             initialSelectedLabSlug={selectedLabSlug}
-            onBackToHome={() => {
-              setSelectedLabSlug(null);
-              handleTabChange('home');
-            }}
+            onBackToHome={() => handleTabChange('home')}
             onExploreWriteups={() => handleTabChange('writeups')}
             onOpenResume={() => setIsResumeOpen(true)}
+            onSelectLab={handleSelectLab}
           />
         ) : (
           /* View 5: Primary Portfolio Homepage - Showcase Projects & Skills */
@@ -153,10 +334,7 @@ export default function App() {
             {/* Metrics / Stats Bar */}
             <StatsBar
               onOpenWriteups={() => handleTabChange('writeups')}
-              onOpenLabs={() => {
-                setSelectedLabSlug(null);
-                handleTabChange('labs');
-              }}
+              onOpenLabs={() => handleSelectLab(null)}
               onOpenCerts={() => handleTabChange('about')}
             />
 
@@ -167,18 +345,17 @@ export default function App() {
               onViewAll={() => handleTabChange('writeups')}
             />
 
-            {/* Recent Lab Triage & CTF Writeups Table */}
+            {/* Recent All-Writeups Table */}
             <RecentWriteupsTable
               writeups={writeups}
               onSelectWriteup={handleSelectWriteup}
               onViewAll={() => handleTabChange('writeups')}
             />
 
-            {/* Labs & Research Architecture Section with direct link to /labs */}
-            <HomelabSection onExploreHomelabPage={() => {
-              setSelectedLabSlug(null);
-              handleTabChange('labs');
-            }} />
+            {/* Proxmox Homelab Range Showcase */}
+            <HomelabSection
+              onExploreHomelabPage={() => handleTabChange('labs')}
+            />
           </div>
         )}
       </main>
@@ -186,6 +363,7 @@ export default function App() {
       {/* Footer */}
       <Footer />
 
+      {/* Resume Modal */}
       <ResumeModal
         isOpen={isResumeOpen}
         onClose={() => setIsResumeOpen(false)}

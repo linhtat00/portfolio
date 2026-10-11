@@ -210,15 +210,17 @@ export const AboutPageView: React.FC<AboutPageViewProps> = ({
 
             {/* Profile Bio Details */}
             <div className="flex-1 space-y-4 text-center md:text-left">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded bg-[#fbbf24]/10 border border-[#fbbf24]/30 text-[#fbbf24] font-['JetBrains_Mono'] text-xs font-semibold">
-                  <Terminal className="w-3.5 h-3.5" />
-                  <span>INVESTIGATOR BIO</span>
+              <div className="space-y-3.5 pb-1">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded bg-[#fbbf24]/10 border border-[#fbbf24]/30 text-[#fbbf24] font-['JetBrains_Mono'] text-xs font-semibold">
+                    <Terminal className="w-3.5 h-3.5" />
+                    <span>INVESTIGATOR BIO</span>
+                  </div>
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-bold font-['Geist'] text-zinc-100 tracking-tight">
+                <h1 className="text-3xl sm:text-4xl font-bold font-['Geist'] text-zinc-100 tracking-tight pt-1">
                   Tất Tiểu Linh
                 </h1>
-                <p className="text-sm sm:text-base font-medium text-[#fbbf24] font-['JetBrains_Mono']">
+                <p className="text-sm sm:text-base font-medium text-[#fbbf24] font-['JetBrains_Mono'] pt-1">
                   3rd-Year Information Security Undergraduate · Aspiring SOC Analyst & Blue Team Member
                 </p>
               </div>
@@ -257,14 +259,14 @@ export const AboutPageView: React.FC<AboutPageViewProps> = ({
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-[#1f1f26] border border-[#27272a] hover:border-[#fbbf24] text-zinc-200 hover:text-[#fbbf24] transition-colors cursor-pointer"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Read Threat Writeups</span>
+                  <span>Read Writeups</span>
                 </button>
                 <button
                   onClick={onExploreHomelab}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-[#1f1f26] border border-[#27272a] hover:border-[#fbbf24] text-zinc-200 hover:text-[#fbbf24] transition-colors cursor-pointer"
                 >
                   <Layers className="w-4 h-4" />
-                  <span>Inspect Homelab Cluster</span>
+                  <span>Inspect Personal Labs</span>
                 </button>
               </div>
             </div>

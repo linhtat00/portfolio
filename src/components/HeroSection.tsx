@@ -71,8 +71,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         output = (
           <div className="text-zinc-300 space-y-0.5">
             <p>Email: linhtatblue@gmail.com</p>
-            <p>Identity: Verified Blue Team Candidate (TryHackMe Top 1% | CyberDefenders)</p>
-            <p>GitHub: github.com/linhtat00 | LinkedIn: linkedin.com/in/tieu-linh-tat-8009b7437</p>
+            <p>GitHub: github.com/linhtat00</p>
+            <p>LinkedIn: linkedin.com/in/tieu-linh-tat-8009b7437</p>
           </div>
         );
         break;
@@ -192,8 +192,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     <span className="terminal-prompt-cmd">whoami</span>
                   </div>
                   <div className="terminal-block-output space-y-0.5">
-                    <p><span className="text-zinc-300 font-medium">Tất Tiểu Linh</span> · B.S. Information Security, Junior (3.43 GPA)</p>
-                    <p className="text-zinc-400">Academy of Cryptography Techniques · Focus: DFIR · Threat Hunting · Log Analysis · Memory Triage</p>
+                    <p><span className="text-zinc-300 font-medium">Tất Tiểu Linh:</span> · 3rd-Year InfoSec Undergrad @ Academy of Cryptography Techniques (3.43 GPA)
+                    · Aspiring SOC Analyst / Blue Team Member.</p>
+                    <p className="text-zinc-400"><span className="text-zinc-300 font-medium">Focus:</span> · DFIR · Threat Hunting · Log Analysis · Memory Triage</p>
                   </div>
                 </div>
 
@@ -204,7 +205,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     <span className="terminal-prompt-cmd">cat ~/skills.json</span>
                   </div>
                   <div className="terminal-block-output font-mono text-xs space-y-0.5">
-                    <p><span className="text-primary-val">siem_edr</span>: ["Splunk ES", "Elastic SIEM", "Sysmon"]</p>
+                    <p><span className="text-primary-val">siem_edr</span>: ["Wazuh", "Elastic SIEM", "Sysmon"]</p>
                     <p><span className="text-primary-val">forensics</span>: ["Volatility 3", "Autopsy", "KAPE", "Wireshark", "Zeek"]</p>
                     <p><span className="text-primary-val">languages</span>: ["Python", "PowerShell", "KQL", "Bash", "Sigma"]</p>
                   </div>
