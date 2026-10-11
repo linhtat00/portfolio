@@ -18,7 +18,12 @@ import { Footer } from './components/Footer';
 // Helper: Detect base repository path on GitHub Pages (e.g. '/portfolio')
 const getBasePath = (): string => {
   if (typeof window === 'undefined') return '';
-  const pathname = window.location.pathname;
+  let pathname = window.location.pathname;
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch (e) {
+    // fallback if unescaped sequence
+  }
   const segments = pathname.split('/').filter(Boolean);
   const knownRoutes = ['writeup', 'writeups', 'lab', 'labs', 'about', 'homelab', 'resources', 'api'];
   if (segments.length > 0 && !knownRoutes.includes(segments[0].toLowerCase())) {
@@ -42,6 +47,11 @@ const parseRouteFromLocation = (writeupList: Writeup[]): ParsedRoute => {
 
   const base = getBasePath().toLowerCase();
   let path = window.location.pathname.toLowerCase();
+  try {
+    path = decodeURIComponent(path);
+  } catch (e) {
+    // fallback
+  }
   
   // Strip base prefix if present
   if (base && path.startsWith(base)) {
@@ -237,13 +247,25 @@ export default function App() {
   }, [writeups]);
 
   useEffect(() => {
+    // If the initial URL was invalid, reset address bar to clean Home URL
+    const route = parseRouteFromLocation(writeups);
+    if (route.isInvalid) {
+      const base = getBasePath();
+      const homeUrl = base ? `${base}/` : '/';
+      try {
+        window.history.replaceState(null, '', homeUrl);
+      } catch (e) {
+        window.location.hash = '';
+      }
+    }
+
     window.addEventListener('popstate', syncRouteFromBrowser);
     window.addEventListener('hashchange', syncRouteFromBrowser);
     return () => {
       window.removeEventListener('popstate', syncRouteFromBrowser);
       window.removeEventListener('hashchange', syncRouteFromBrowser);
     };
-  }, [syncRouteFromBrowser]);
+  }, [syncRouteFromBrowser, writeups]);
 
   // Showcase Navigation
   const handleSelectWriteup = (w: Writeup) => {
