@@ -11,7 +11,6 @@ import { WriteupDetailView } from './components/WriteupDetailView';
 import { WriteupOverviewView } from './components/WriteupOverviewView';
 import { AboutPageView } from './components/AboutPageView';
 import { LabsPageView } from './components/LabsPageView';
-import { UploadCMSPortal } from './components/UploadCMSPortal';
 import { ResumeModal } from './components/ResumeModal';
 import { Footer } from './components/Footer';
 
@@ -260,22 +259,6 @@ export default function App() {
     updateRoute(targetPath);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
-  // If in dedicated CMS Portal (/upload)
-  if (isUploadPortal) {
-    return (
-      <UploadCMSPortal
-        writeups={writeups}
-        onSaveWriteup={handleSaveWriteup}
-        onDeleteWriteup={handleDeleteWriteup}
-        onExitToPublic={navigateToPublic}
-        onViewWriteupInPublic={(w) => {
-          navigateToPublic();
-          handleSelectWriteup(w);
-        }}
-      />
-    );
-  }
 
   // PUBLIC SHOWCASE PORTFOLIO (www.myportfolio.io)
   return (
