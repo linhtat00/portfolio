@@ -5,10 +5,13 @@ import { kerberoastingWriteup } from './kerberoasting-ad';
 import { cobaltStrikeWriteup } from './cobalt-strike-dns-tunnel';
 
 // Export legacy static writeups for backward compatibility
+import { presentationIdeasWriteup } from './presentation-ideas';
+
 export {
   qakbotWriteup,
   kerberoastingWriteup,
-  cobaltStrikeWriteup,
+  cobaltStrikeWriteup,,
+  presentationIdeasWriteup
 };
 
 // ----------------------------------------------------------------------
