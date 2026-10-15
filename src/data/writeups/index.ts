@@ -10,7 +10,7 @@ import { presentationIdeasWriteup } from './presentation-ideas';
 export {
   qakbotWriteup,
   kerberoastingWriteup,
-  cobaltStrikeWriteup,,
+  cobaltStrikeWriteup,
   presentationIdeasWriteup
 };
 
