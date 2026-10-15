@@ -182,17 +182,18 @@ const parseRouteFromLocation = (writeupList: Writeup[]): ParsedRoute => {
 };
 
 export default function App() {
-  const [writeups] = useState<Writeup[]>(() => {
+  // Clean up any stale localStorage cache from legacy client-side CMS
+  if (typeof window !== 'undefined') {
     try {
-      const saved = localStorage.getItem('blue_team_writeups');
-      if (saved) {
-        return JSON.parse(saved);
-      }
+      localStorage.removeItem('blue_team_writeups');
+      localStorage.removeItem('blue_team_labs');
+      localStorage.removeItem('portfolio_labs');
     } catch (e) {
-      console.warn('Failed to load local writeups', e);
+      // ignore
     }
-    return INITIAL_WRITEUPS;
-  });
+  }
+
+  const writeups: Writeup[] = INITIAL_WRITEUPS;
 
   // Parse initial route on load
   const initialRoute = parseRouteFromLocation(writeups);

@@ -33,7 +33,7 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
   initialSelectedLabSlug = null,
   onSelectLab
 }) => {
-  const [labs] = useState<LabProject[]>(INITIAL_LABS);
+  const labs: LabProject[] = INITIAL_LABS;
   const [selectedLabSlug, setSelectedLabSlug] = useState<string | null>(initialSelectedLabSlug);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrack, setSelectedTrack] = useState<string>('ALL');
