@@ -17,13 +17,13 @@ export const RecentWriteupsTable: React.FC<RecentWriteupsTableProps> = ({
   const filtered = writeups.filter((item) => {
     if (activeFilter === 'All') return true;
     if (activeFilter === 'Forensics') {
-      return item.category.includes('Forensics') || item.category.includes('Memory') || item.category.includes('Disk');
+      return item.category.includes('Forensics') || item.category.includes('Memory') || item.category.includes('Disk') || item.category.includes('Malware');
     }
     if (activeFilter === 'Network') {
-      return item.category.includes('PCAP') || item.category.includes('Network');
+      return item.category.includes('PCAP') || item.category.includes('Network') || item.category.includes('OSINT');
     }
     if (activeFilter === 'SIEM') {
-      return item.category.includes('Active Directory') || item.category.includes('SIEM') || item.category.includes('Incident');
+      return item.category.includes('Active Directory') || item.category.includes('SIEM') || item.category.includes('Incident') || item.category.includes('Threat');
     }
     return true;
   });

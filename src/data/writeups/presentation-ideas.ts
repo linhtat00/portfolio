@@ -5,7 +5,7 @@ export const presentationIdeasWriteup: Writeup = {
   slug: "presentation-ideas",
   code: "#CD-20261015-0944",
   title: "PRESENTATION IDEAS",
-  category: "Threat Intelligence/OSINT",
+  category: "OSINT",
   platform: "CyberDefenders",
   difficulty: "EASY",
   date: "Published Today",

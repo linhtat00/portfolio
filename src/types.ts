@@ -1,24 +1,51 @@
-export type CategoryType = 
-  | 'Memory Forensics'
-  | 'Active Directory'
-  | 'PCAP Triage'
-  | 'Disk Forensics'
-  | 'Threat Hunting'
-  | 'SIEM & Detection'
-  | 'Incident Response';
+// ----------------------------------------------------------------------
+// Threat Writeup Categories & Platforms (Dynamic Source of Truth)
+// ----------------------------------------------------------------------
+export const CATEGORIES = [
+  'Active Directory',
+  'Digital Forensics',
+  'Disk Forensics',
+  'Incident Response',
+  'Malware Analysis',
+  'Memory Forensics',
+  'Network Forensics',
+  'OSINT',
+  'Threat Hunting',
+  'SIEM & Detection',
+  'PCAP Triage',
+] as const;
 
-export type PlatformType = 
-  | 'Blue Team Labs'
-  | 'HackTheBox'
-  | 'MTA Labs'
-  | 'CyberDefenders'
-  | 'Internal Range'
-  | 'Sherlocks';
+export type CategoryType = (typeof CATEGORIES)[number];
 
-export type DifficultyType = 'EASY' | 'MED' | 'HARD';
+export const PLATFORMS = [
+  'Blue Team Labs',
+  'CyberDefenders',
+  'HackTheBox',
+  'Internal Range',
+  'MTA Labs',
+  'Sherlocks',
+] as const;
+
+export type PlatformType = (typeof PLATFORMS)[number];
+
+export const DIFFICULTIES = ['EASY', 'MED', 'HARD'] as const;
+export type DifficultyType = (typeof DIFFICULTIES)[number];
+
+export type ActiveTab = 'home' | 'writeups' | 'labs' | 'about';
+
+export const IOC_TYPES = [
+  'SHA256',
+  'MD5',
+  'IPv4',
+  'Domain',
+  'Registry',
+  'NamedPipe',
+  'File',
+] as const;
+export type IOCType = (typeof IOC_TYPES)[number];
 
 export interface IOCItem {
-  type: 'SHA256' | 'MD5' | 'IPv4' | 'Domain' | 'Registry' | 'NamedPipe' | 'File';
+  type: IOCType;
   value: string;
   description: string;
 }
@@ -34,7 +61,7 @@ export interface Writeup {
   id: string;
   slug: string;
   title: string;
-  code: string; // e.g. "#IR-2024-09" or "[BTLO]"
+  code: string;
   category: CategoryType;
   platform: PlatformType;
   difficulty: DifficultyType;
@@ -50,11 +77,26 @@ export interface Writeup {
   rawTelemetry?: string;
 }
 
-export type LabTrack = 
-  | 'Academic / School Project' 
-  | 'CompTIA CySA+' 
-  | 'CEH Practical' 
-  | 'Defensive Infrastructure';
+// ----------------------------------------------------------------------
+// Cyber Defense Labs & Range Architecture (Dynamic Source of Truth)
+// ----------------------------------------------------------------------
+export const LAB_TRACKS = [
+  'Academic / School Project',
+  'CEH Practical',
+  'CompTIA CySA+',
+  'Defensive Infrastructure',
+] as const;
+
+export type LabTrack = (typeof LAB_TRACKS)[number];
+
+export const LAB_DIFFICULTIES = ['Intermediate', 'Advanced', 'Expert'] as const;
+export type LabDifficulty = (typeof LAB_DIFFICULTIES)[number];
+
+export const LAB_STATUSES = [
+  'Active Defense Range',
+  'Completed & Documented',
+] as const;
+export type LabStatus = (typeof LAB_STATUSES)[number];
 
 export interface LabNode {
   name: string;
@@ -84,10 +126,10 @@ export interface LabProject {
   title: string;
   track: LabTrack;
   category: string;
-  difficulty: 'Intermediate' | 'Advanced' | 'Expert';
+  difficulty: LabDifficulty;
   date: string;
   duration: string;
-  status: 'Completed & Documented' | 'Active Defense Range';
+  status: LabStatus;
   tools: string[];
   summary: string;
   objectives: string[];
@@ -101,5 +143,18 @@ export interface LabProject {
   verificationEvidence?: string;
 }
 
-export type ActiveTab = 'home' | 'writeups' | 'labs' | 'about';
+export interface GitHubSyncConfig {
+  token: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  writeupsPath?: string;
+  labsPath?: string;
+}
 
+export interface SyncResult {
+  success: boolean;
+  message: string;
+  commitUrl?: string;
+  fileName?: string;
+}

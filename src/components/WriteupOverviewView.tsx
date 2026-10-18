@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Writeup, CategoryType, PlatformType, DifficultyType } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Writeup, CATEGORIES, PLATFORMS } from '../types';
 import { Search, Filter, ArrowRight, ArrowLeft, Shield, LayoutGrid, List, FileText, Layers } from 'lucide-react';
 
 interface WriteupOverviewViewProps {
@@ -19,8 +19,19 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
-  const categories = ['All', 'Memory Forensics', 'Active Directory', 'PCAP Triage', 'Disk Forensics', 'Incident Response'];
-  const platforms = ['All', 'Blue Team Labs', 'HackTheBox', 'MTA Labs', 'CyberDefenders', 'Internal Range'];
+  // Dynamically resolve all unique categories from CMS constants and actual writeup data
+  const categories = useMemo(() => {
+    const fromData = writeups.map(w => w.category).filter(Boolean);
+    const set = new Set<string>(['All', ...CATEGORIES, ...fromData]);
+    return Array.from(set);
+  }, [writeups]);
+
+  // Dynamically resolve all unique platforms from CMS constants and actual writeup data
+  const platforms = useMemo(() => {
+    const fromData = writeups.map(w => w.platform).filter(Boolean);
+    const set = new Set<string>(['All', ...PLATFORMS, ...fromData]);
+    return Array.from(set);
+  }, [writeups]);
 
   const filtered = writeups.filter((item) => {
     const matchesSearch =
@@ -54,7 +65,7 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
             <span className="text-zinc-600 font-mono text-xs hidden sm:inline">/</span>
 
             <div className="font-mono text-xs text-muted-val truncate">
-              <span className="text-primary-val">~/linh@analyst:$</span> ls -la /writeups/repository
+              <span className="text-primary-val">~/linh@analysts:$</span> ls -la /writeups/repository
             </div>
           </div>
         </div>
@@ -134,6 +145,23 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
                 }`}
               >
                 {cat}
+              </button>
+            ))}
+
+            <div className="h-4 w-px bg-[#27272a] mx-2 hidden lg:block"></div>
+
+            <span className="text-[11px] font-['JetBrains_Mono'] text-zinc-500 uppercase mr-1 hidden sm:inline">Platform:</span>
+            {platforms.map((plat) => (
+              <button
+                key={plat}
+                onClick={() => setSelectedPlatform(plat)}
+                className={`px-2.5 py-1 rounded text-xs font-['JetBrains_Mono'] transition-colors cursor-pointer ${
+                  selectedPlatform === plat
+                    ? 'bg-[#fbbf24] text-[#451a03] font-semibold'
+                    : 'bg-[#18181c] border border-[#27272a] text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {plat}
               </button>
             ))}
 

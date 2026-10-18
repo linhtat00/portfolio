@@ -42,7 +42,7 @@ export const Footer: React.FC<FooterProps> = () => {
         {/* Right: Profiles (GitHub, LinkedIn, Indeed only) with matching icons */}
         <div className="footer-social-links">
           <a
-            href="https://github.com"
+            href="https://github.com/linhtat00"
             target="_blank"
             rel="noopener noreferrer"
             className="footer-social-link"
@@ -54,7 +54,7 @@ export const Footer: React.FC<FooterProps> = () => {
           <span className="footer-divider-pipe">|</span>
 
           <a
-            href="https://linkedin.com"
+            href="https://www.linkedin.com/in/tieu-linh-tat-8009b7437/"
             target="_blank"
             rel="noopener noreferrer"
             className="footer-social-link"
