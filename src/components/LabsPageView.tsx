@@ -18,6 +18,7 @@ import {
 import { LabProject, LabTrack } from '../types';
 import { INITIAL_LABS } from '../data/labs';
 import { VerticalReadingProgress, ProgressSectionItem } from './VerticalReadingProgress';
+import { TerminalCodeBlock } from './TerminalCodeBlock';
 
 interface LabsPageViewProps {
   onBackToHome: () => void;
@@ -347,32 +348,12 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
                     </p>
 
                     {step.commandSnippet && (
-                      <div className="relative rounded-lg overflow-hidden border border-surface-val bg-black/60 mt-3">
-                        <div className="bg-container-val px-3.5 py-1.5 border-b border-surface-val flex items-center justify-between text-2xs font-mono text-muted-val">
-                          <span className="flex items-center gap-1.5">
-                            <Terminal className="w-3 h-3 text-primary-val" />
-                            <span>Verification CLI / Script</span>
-                          </span>
-                          <button
-                            onClick={() => handleCopySnippet(step.commandSnippet!, idx)}
-                            className="inline-flex items-center gap-1 text-muted-val hover:text-primary-val transition-colors cursor-pointer"
-                          >
-                            {copiedCodeIndex === idx ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-emerald-400 text-2xs">Copied</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5" />
-                                <span className="text-2xs">Copy</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <pre className="p-3.5 text-xs font-mono text-zinc-300 overflow-x-auto leading-relaxed">
-                          <code>{step.commandSnippet}</code>
-                        </pre>
+                      <div className="mt-2">
+                        <TerminalCodeBlock
+                          code={step.commandSnippet}
+                          title={`${step.phase} - ${step.title}`}
+                          language="bash"
+                        />
                       </div>
                     )}
                   </div>

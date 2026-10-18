@@ -3,6 +3,7 @@ import { Writeup } from '../types';
 import { ArrowLeft, Share2, Copy, Check, Download, Shield, Terminal, FileCode, Database, Clock, Calendar } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { VerticalReadingProgress, ProgressSectionItem } from './VerticalReadingProgress';
+import { TerminalCodeBlock } from './TerminalCodeBlock';
 
 interface WriteupDetailViewProps {
   writeup: Writeup;
@@ -333,16 +334,14 @@ ${writeup.content}
                           </code>
                         );
                       }
+                      const match = /language-(\w+)/.exec(className || '');
+                      const language = match ? match[1] : '';
+                      const rawCode = String(children).replace(/\n$/, '');
                       return (
-                        <div className="my-4 rounded-lg border border-surface-val bg-surface-var overflow-hidden">
-                          <div className="px-4 py-1.5 bg-container-val border-b border-surface-val flex items-center justify-between text-2xs font-mono text-muted-val">
-                            <span>terminal / artifact execution</span>
-                            <span className="text-primary-val">READ-ONLY</span>
-                          </div>
-                          <pre className="p-4 font-mono text-xs text-zinc-200 overflow-x-auto leading-relaxed">
-                            <code>{children}</code>
-                          </pre>
-                        </div>
+                        <TerminalCodeBlock
+                          code={rawCode}
+                          language={language || 'bash'}
+                        />
                       );
                     }
                   }}
@@ -369,32 +368,16 @@ ${writeup.content}
           <div id="writeup-tab-card" className="space-y-6">
             {writeup.detectionQueries && writeup.detectionQueries.length > 0 ? (
               writeup.detectionQueries.map((dq, idx) => (
-                <div key={idx} className="rounded-xl bg-surface-val border border-surface-val overflow-hidden">
-                  <div className="p-4 bg-container-val border-b border-surface-val flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h3 className="font-semibold text-zinc-100 font-sans text-sm sm:text-base">{dq.title}</h3>
-                      <p className="text-xs text-muted-val font-sans">{dq.description}</p>
-                    </div>
-                    <button
-                      onClick={() => handleCopyQuery(dq.code, `query-${idx}`)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-surface-val border border-surface-val hover:border-amber-400/40 text-zinc-300 hover:text-primary-val font-mono text-xs transition-colors cursor-pointer self-start sm:self-auto"
-                    >
-                      {copiedQuery === `query-${idx}` ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-primary-val" />
-                          <span>Copied SPL</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Rule</span>
-                        </>
-                      )}
-                    </button>
+                <div key={idx} className="space-y-2">
+                  <div className="px-1">
+                    <h3 className="font-semibold text-zinc-100 font-sans text-sm sm:text-base">{dq.title}</h3>
+                    {dq.description && <p className="text-xs text-muted-val font-sans mt-0.5">{dq.description}</p>}
                   </div>
-                  <pre className="p-5 font-mono text-xs text-amber-200/90 bg-black/60 overflow-x-auto leading-relaxed">
-                    <code>{dq.code}</code>
-                  </pre>
+                  <TerminalCodeBlock
+                    code={dq.code}
+                    title={`${dq.title} [${(dq.language || 'SPL').toUpperCase()}]`}
+                    language={dq.language || 'spl'}
+                  />
                 </div>
               ))
             ) : (
@@ -474,25 +457,26 @@ ${writeup.content}
 
         {/* Tab 4: Raw Telemetry */}
         {activeTab === 'telemetry' && (
-          <div id="writeup-tab-card" className="rounded-xl bg-black/60 border border-surface-val overflow-hidden font-mono text-xs">
-            <div className="px-4 py-2 bg-container-val border-b border-surface-val flex items-center justify-between text-muted-val">
-              <span>raw_stream_capture.log // Wireshark / Volatility / Sysmon Telemetry</span>
-              <span className={writeup.rawTelemetry?.trim() ? "text-primary-val" : "text-dim-val"}>
-                {writeup.rawTelemetry?.trim() ? "FILTER: PASS" : "FEED: NO_STREAM"}
-              </span>
-            </div>
-            
+          <div id="writeup-tab-card" className="space-y-4">
             {writeup.rawTelemetry?.trim() ? (
-              <div className="p-5 text-zinc-300 space-y-2 overflow-x-auto">
-                <div className="text-dim-val font-mono text-2xs">
-                  # Stream Capture & Forensic Raw Artifacts
+              <div className="space-y-2">
+                <div className="px-1 flex items-center justify-between">
+                  <span className="font-mono text-xs text-muted-val">
+                    Forensic Hex / Stream Capture Logs
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-2xs font-semibold">
+                    FEED: VERIFIED
+                  </span>
                 </div>
-                <pre className="text-amber-300/80 font-mono text-xs whitespace-pre-wrap break-all leading-relaxed">
-                  {writeup.rawTelemetry.trim()}
-                </pre>
+                <TerminalCodeBlock
+                  code={writeup.rawTelemetry.trim()}
+                  title="raw_stream_capture.log [telemetry]"
+                  language="log"
+                  defaultWrap={true}
+                />
               </div>
             ) : (
-              <div className="p-10 text-center space-y-3 font-sans">
+              <div className="p-10 text-center rounded-xl bg-surface-val border border-surface-val space-y-3 font-sans">
                 <Terminal className="w-8 h-8 text-zinc-600 mx-auto" />
                 <div className="text-zinc-200 font-medium text-sm">
                   No Raw Telemetry Stream Logged
