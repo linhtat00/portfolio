@@ -43,7 +43,7 @@ export const TerminalCodeBlock: React.FC<TerminalCodeBlockProps> = ({
     ? title
     : language
     ? `${language.toLowerCase()} [cli]`
-    : 'telemetry_session@analyst [bash]';
+    : 'terminal [cli]';
 
   return (
     <div
