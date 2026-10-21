@@ -7,11 +7,14 @@ import { cobaltStrikeWriteup } from './cobalt-strike-dns-tunnel';
 // Export legacy static writeups for backward compatibility
 import { presentationIdeasWriteup } from './presentation-ideas';
 
+import { testNewFunctionWriteup } from './test-new-function';
+
 export {
   qakbotWriteup,
   kerberoastingWriteup,
   cobaltStrikeWriteup,
-  presentationIdeasWriteup
+  presentationIdeasWriteup,
+  testNewFunctionWriteup
 };
 
 // ----------------------------------------------------------------------
