@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Writeup, CATEGORIES, PLATFORMS } from '../types';
-import { Search, Filter, ArrowRight, ArrowLeft, Shield, LayoutGrid, List, FileText, Layers } from 'lucide-react';
+import { Writeup, CATEGORIES, PLATFORMS, getPrimaryCategory, getAllCategories, formatWriteupDate } from '../types';
+import { Search, Filter, ArrowRight, ArrowLeft, Shield, LayoutGrid, List, FileText, Layers, Calendar } from 'lucide-react';
 
 interface WriteupOverviewViewProps {
   writeups: Writeup[];
@@ -21,7 +21,7 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
 
   // Dynamically resolve all unique categories from CMS constants and actual writeup data
   const categories = useMemo(() => {
-    const fromData = writeups.map(w => w.category).filter(Boolean);
+    const fromData = writeups.flatMap(w => getAllCategories(w)).filter(Boolean);
     const set = new Set<string>(['All', ...CATEGORIES, ...fromData]);
     return Array.from(set);
   }, [writeups]);
@@ -41,7 +41,7 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
       item.mitreAttack.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
       item.tools.some(tool => tool.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'All' || getAllCategories(item).includes(selectedCategory);
     const matchesPlatform = selectedPlatform === 'All' || item.platform === selectedPlatform;
     const matchesDifficulty = selectedDifficulty === 'All' || item.difficulty === selectedDifficulty;
 
@@ -207,57 +207,63 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
         {/* Grid Mode */}
         {viewMode === 'grid' && (
           <div className="writeups-grid">
-            {filtered.map((item) => (
-              <article
-                key={item.id}
-                onClick={() => onSelectWriteup(item)}
-                className="dossier-card-container group"
-              >
-                <div className="flex flex-col gap-4">
-                  <div className="dossier-header-row">
-                    <span className="dossier-category-badge">
-                      {item.category}
+            {filtered.map((item) => {
+              const dateInfo = formatWriteupDate(item);
+              return (
+                <article
+                  key={item.id}
+                  onClick={() => onSelectWriteup(item)}
+                  className="dossier-card-container group"
+                >
+                  <div className="flex flex-col gap-4">
+                    <div className="dossier-header-row">
+                      <span className="dossier-category-badge">
+                        {getPrimaryCategory(item)}
+                      </span>
+                      <span className="dossier-code-label">{item.code}</span>
+                    </div>
+
+                    <h3 className="dossier-card-title">
+                      {item.title}
+                    </h3>
+
+                    <p className="dossier-card-summary line-clamp-3">
+                      {item.summary}
+                    </p>
+
+                    <div className="dossier-tags-row">
+                      {item.mitreAttack.map((tag) => (
+                        <span
+                          key={tag}
+                          className="dossier-tag-pill text-zinc-300"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {item.tools.slice(0, 2).map((tool) => (
+                        <span
+                          key={tool}
+                          className="dossier-tag-pill text-zinc-400"
+                        >
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="dossier-card-footer">
+                    <span className="text-zinc-400 font-mono text-xs inline-flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-primary-val" />
+                      <span>{dateInfo.display}</span>
                     </span>
-                    <span className="dossier-code-label">{item.code}</span>
+                    <span className="text-[#fbbf24] group-hover:translate-x-1 inline-flex items-center gap-1 transition-transform font-medium">
+                      <span>Read Dossier</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
                   </div>
-
-                  <h3 className="dossier-card-title">
-                    {item.title}
-                  </h3>
-
-                  <p className="dossier-card-summary line-clamp-3">
-                    {item.summary}
-                  </p>
-
-                  <div className="dossier-tags-row">
-                    {item.mitreAttack.map((tag) => (
-                      <span
-                        key={tag}
-                        className="dossier-tag-pill text-zinc-300"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {item.tools.slice(0, 2).map((tool) => (
-                      <span
-                        key={tool}
-                        className="dossier-tag-pill text-zinc-400"
-                      >
-                        {tool}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="dossier-card-footer">
-                  <span className="text-zinc-400">{item.readTime}</span>
-                  <span className="text-[#fbbf24] group-hover:translate-x-1 inline-flex items-center gap-1 transition-transform font-medium">
-                    <span>Read Dossier</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         )}
 
@@ -272,48 +278,54 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
               <div className="hidden lg:block lg:col-span-2 text-right">Date</div>
             </div>
 
-            {filtered.map((row, idx) => (
-              <div
-                key={row.id}
-                onClick={() => onSelectWriteup(row)}
-                className={`writeups-table-row grid grid-cols-12 group ${
-                  idx < filtered.length - 1 ? 'border-b border-[#27272a]/50' : ''
-                }`}
-              >
-                <div className="col-span-12 sm:col-span-5 flex items-center gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24] shrink-0"></span>
-                  <span className="font-['Geist'] text-sm font-medium text-zinc-200 group-hover:text-[#fbbf24] transition-colors truncate">
-                    {row.title}
-                  </span>
-                </div>
-                <div className="hidden sm:block sm:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
-                  {row.category}
-                </div>
-                <div className="hidden md:block md:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
-                  {row.platform}
-                </div>
-                <div className="hidden md:block md:col-span-1">
-                  {row.difficulty === 'HARD' && (
-                    <span className="px-1.5 py-0.5 rounded bg-[#450a0a] text-[#f87171] font-['JetBrains_Mono'] text-[10px] font-bold">
-                      HARD
+            {filtered.map((row, idx) => {
+              const dateInfo = formatWriteupDate(row);
+              return (
+                <div
+                  key={row.id}
+                  onClick={() => onSelectWriteup(row)}
+                  className={`writeups-table-row grid grid-cols-12 group ${
+                    idx < filtered.length - 1 ? 'border-b border-[#27272a]/50' : ''
+                  }`}
+                >
+                  <div className="col-span-12 sm:col-span-5 flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24] shrink-0"></span>
+                    <span className="font-['Geist'] text-sm font-medium text-zinc-200 group-hover:text-[#fbbf24] transition-colors truncate">
+                      {row.title}
                     </span>
-                  )}
-                  {row.difficulty === 'MED' && (
-                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-[#fbbf24] font-['JetBrains_Mono'] text-[10px] font-bold">
-                      MED
+                  </div>
+                  <div className="hidden sm:block sm:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
+                    {getPrimaryCategory(row)}
+                  </div>
+                  <div className="hidden md:block md:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
+                    {row.platform}
+                  </div>
+                  <div className="hidden md:block md:col-span-1">
+                    {row.difficulty === 'HARD' && (
+                      <span className="px-1.5 py-0.5 rounded bg-[#450a0a] text-[#f87171] font-['JetBrains_Mono'] text-[10px] font-bold">
+                        HARD
+                      </span>
+                    )}
+                    {row.difficulty === 'MED' && (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-[#fbbf24] font-['JetBrains_Mono'] text-[10px] font-bold">
+                        MED
+                      </span>
+                    )}
+                    {row.difficulty === 'EASY' && (
+                      <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-['JetBrains_Mono'] text-[10px] font-bold">
+                        EASY
+                      </span>
+                    )}
+                  </div>
+                  <div className="hidden lg:block lg:col-span-2 text-right">
+                    <span className="font-mono text-xs text-zinc-400 inline-flex items-center gap-1.5 justify-end">
+                      <Calendar className="w-3.5 h-3.5 text-primary-val" />
+                      <span>{dateInfo.display}</span>
                     </span>
-                  )}
-                  {row.difficulty === 'EASY' && (
-                    <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-['JetBrains_Mono'] text-[10px] font-bold">
-                      EASY
-                    </span>
-                  )}
+                  </div>
                 </div>
-                <div className="hidden lg:block lg:col-span-2 text-right font-['JetBrains_Mono'] text-xs text-zinc-500">
-                  {row.date}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Writeup } from '../types';
-import { Shield, ArrowRight } from 'lucide-react';
+import { Writeup, getPrimaryCategory, formatWriteupDate } from '../types';
+import { Shield, ArrowRight, Calendar } from 'lucide-react';
 
 interface FeaturedDossiersProps {
   writeups: Writeup[];
@@ -40,19 +40,21 @@ export const FeaturedDossiers: React.FC<FeaturedDossiersProps> = ({
 
         {/* 3 Clean Dossier Cards */}
         <div className="writeups-grid">
-          {featured.map((item) => (
-            <article
-              key={item.id}
-              onClick={() => onSelectWriteup(item)}
-              className="dossier-card group"
-            >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-primary-val font-mono text-xs font-medium">
-                    {item.category}
-                  </span>
-                  <span className="font-mono text-xs text-zinc-400">{item.code}</span>
-                </div>
+          {featured.map((item) => {
+            const dateInfo = formatWriteupDate(item);
+            return (
+              <article
+                key={item.id}
+                onClick={() => onSelectWriteup(item)}
+                className="dossier-card group"
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-primary-val font-mono text-xs font-medium">
+                      {getPrimaryCategory(item)}
+                    </span>
+                    <span className="font-mono text-xs text-zinc-400">{item.code}</span>
+                  </div>
 
                 <h3 className="dossier-title">
                   {item.title}
@@ -87,10 +89,14 @@ export const FeaturedDossiers: React.FC<FeaturedDossiersProps> = ({
                   <span>Read Dossier</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>
-                <span className="dossier-readtime">{item.readTime}</span>
+                <span className="dossier-readtime inline-flex items-center gap-1.5 text-zinc-400 font-mono text-xs">
+                  <Calendar className="w-3.5 h-3.5 text-primary-val" />
+                  <span>{dateInfo.display}</span>
+                </span>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

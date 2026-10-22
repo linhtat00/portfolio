@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Writeup } from '../types';
+import { Writeup, getPrimaryCategory, getAllCategories, formatWriteupDate } from '../types';
+import { Calendar } from 'lucide-react';
 
 interface RecentWriteupsTableProps {
   writeups: Writeup[];
@@ -16,14 +17,15 @@ export const RecentWriteupsTable: React.FC<RecentWriteupsTableProps> = ({
 
   const filtered = writeups.filter((item) => {
     if (activeFilter === 'All') return true;
+    const cats = getAllCategories(item).join(' ');
     if (activeFilter === 'Forensics') {
-      return item.category.includes('Forensics') || item.category.includes('Memory') || item.category.includes('Disk') || item.category.includes('Malware');
+      return cats.includes('Forensics') || cats.includes('Memory') || cats.includes('Disk') || cats.includes('Malware');
     }
     if (activeFilter === 'Network') {
-      return item.category.includes('PCAP') || item.category.includes('Network') || item.category.includes('OSINT');
+      return cats.includes('PCAP') || cats.includes('Network') || cats.includes('OSINT');
     }
     if (activeFilter === 'SIEM') {
-      return item.category.includes('Active Directory') || item.category.includes('SIEM') || item.category.includes('Incident') || item.category.includes('Threat');
+      return cats.includes('Active Directory') || cats.includes('SIEM') || cats.includes('Incident') || cats.includes('Threat');
     }
     return true;
   });
@@ -70,57 +72,63 @@ export const RecentWriteupsTable: React.FC<RecentWriteupsTableProps> = ({
           </div>
 
           {/* Table Rows */}
-          {filtered.map((row, idx) => (
-            <div
-              key={row.id}
-              onClick={() => onSelectWriteup(row)}
-              className={`writeups-table-row grid grid-cols-12 group cursor-pointer ${
-                idx < filtered.length - 1 ? 'border-b border-[#27272a]/50' : ''
-              }`}
-            >
-              {/* Incident Title */}
-              <div className="col-span-12 sm:col-span-5 flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24] shrink-0"></span>
-                <span className="font-['Geist'] text-sm font-medium text-zinc-200 group-hover:text-[#fbbf24] transition-colors truncate">
-                  {row.title}
-                </span>
-              </div>
-
-              {/* Domain / Category */}
-              <div className="hidden sm:block sm:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
-                {row.category}
-              </div>
-
-              {/* Platform */}
-              <div className="hidden md:block md:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
-                {row.platform}
-              </div>
-
-              {/* Difficulty Tag */}
-              <div className="hidden md:block md:col-span-1">
-                {row.difficulty === 'HARD' && (
-                  <span className="px-1.5 py-0.5 rounded bg-[#450a0a] text-[#f87171] font-['JetBrains_Mono'] text-[10px] font-bold">
-                    HARD
+          {filtered.map((row, idx) => {
+            const dateInfo = formatWriteupDate(row);
+            return (
+              <div
+                key={row.id}
+                onClick={() => onSelectWriteup(row)}
+                className={`writeups-table-row grid grid-cols-12 group cursor-pointer ${
+                  idx < filtered.length - 1 ? 'border-b border-[#27272a]/50' : ''
+                }`}
+              >
+                {/* Incident Title */}
+                <div className="col-span-12 sm:col-span-5 flex items-center gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#fbbf24] shrink-0"></span>
+                  <span className="font-['Geist'] text-sm font-medium text-zinc-200 group-hover:text-[#fbbf24] transition-colors truncate">
+                    {row.title}
                   </span>
-                )}
-                {row.difficulty === 'MED' && (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-[#fbbf24] font-['JetBrains_Mono'] text-[10px] font-bold">
-                    MED
-                  </span>
-                )}
-                {row.difficulty === 'EASY' && (
-                  <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-['JetBrains_Mono'] text-[10px] font-bold">
-                    EASY
-                  </span>
-                )}
-              </div>
+                </div>
 
-              {/* Date */}
-              <div className="hidden lg:block lg:col-span-2 text-right font-['JetBrains_Mono'] text-xs text-zinc-500">
-                {row.date}
+                {/* Domain / Category */}
+                <div className="hidden sm:block sm:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
+                  {getPrimaryCategory(row)}
+                </div>
+
+                {/* Platform */}
+                <div className="hidden md:block md:col-span-2 font-['JetBrains_Mono'] text-xs text-zinc-400 truncate">
+                  {row.platform}
+                </div>
+
+                {/* Difficulty Tag */}
+                <div className="hidden md:block md:col-span-1">
+                  {row.difficulty === 'HARD' && (
+                    <span className="px-1.5 py-0.5 rounded bg-[#450a0a] text-[#f87171] font-['JetBrains_Mono'] text-[10px] font-bold">
+                      HARD
+                    </span>
+                  )}
+                  {row.difficulty === 'MED' && (
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-[#fbbf24] font-['JetBrains_Mono'] text-[10px] font-bold">
+                      MED
+                    </span>
+                  )}
+                  {row.difficulty === 'EASY' && (
+                    <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-['JetBrains_Mono'] text-[10px] font-bold">
+                      EASY
+                    </span>
+                  )}
+                </div>
+
+                {/* Date */}
+                <div className="hidden lg:block lg:col-span-2 text-right">
+                  <span className="font-mono text-xs text-zinc-400 inline-flex items-center gap-1.5 justify-end">
+                    <Calendar className="w-3.5 h-3.5 text-primary-val" />
+                    <span>{dateInfo.display}</span>
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* View all writeups action */}

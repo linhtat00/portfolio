@@ -1,9 +1,30 @@
 import React, { useState, useMemo } from 'react';
-import { Writeup } from '../types';
-import { ArrowLeft, Share2, Copy, Check, Download, Shield, Terminal, FileCode, Database, Clock, Calendar } from 'lucide-react';
+import { Writeup, getPrimaryCategory, getAllCategories, AttackTimelineEvent, formatWriteupDate } from '../types';
+import { 
+  ArrowLeft, 
+  Share2, 
+  Copy, 
+  Check, 
+  Download, 
+  Shield, 
+  Terminal, 
+  FileCode, 
+  Database, 
+  Clock, 
+  Calendar,
+  AlertTriangle,
+  Info,
+  ShieldAlert,
+  Lightbulb,
+  AlertOctagon,
+  Quote
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { VerticalReadingProgress, ProgressSectionItem } from './VerticalReadingProgress';
 import { TerminalCodeBlock } from './TerminalCodeBlock';
+import { AttackTimelineViewer } from './AttackTimelineViewer';
 
 interface WriteupDetailViewProps {
   writeup: Writeup;
@@ -22,17 +43,89 @@ const slugify = (text: string) => {
     .replace(/(^-|-$)/g, '');
 };
 
-const extractNodeText = (node: React.ReactNode): string => {
+const extractNodeText = (node: any): string => {
+  if (!node) return '';
   if (typeof node === 'string' || typeof node === 'number') {
     return String(node);
   }
   if (Array.isArray(node)) {
     return node.map(extractNodeText).join('');
   }
-  if (node && typeof node === 'object' && 'props' in node) {
-    return extractNodeText((node as { props: { children?: React.ReactNode } }).props.children);
+  if (typeof node === 'object' && node.props && node.props.children) {
+    return extractNodeText(node.props.children);
   }
   return '';
+};
+
+// Helper: Parse markdown table into timeline events if not present in writeup object
+const parseTimelineFromMarkdown = (markdown: string): AttackTimelineEvent[] => {
+  if (!markdown) return [];
+  const events: AttackTimelineEvent[] = [];
+
+  let tableText = markdown;
+  const blockMatch = markdown.match(/<!--\s*ATTACK_TIMELINE_START\s*-->([\s\S]*?)<!--\s*ATTACK_TIMELINE_END\s*-->/i);
+  if (blockMatch) {
+    tableText = blockMatch[1];
+  }
+
+  const lines = tableText.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) continue;
+    if (/Timestamp/i.test(trimmed) || /:---/i.test(trimmed)) continue;
+
+    const cols = trimmed.slice(1, -1).split('|').map(c => c.trim());
+    if (cols.length >= 3) {
+      const rawTime = cols[0].replace(/[`*]/g, '').trim();
+      const rawPhase = cols[1];
+      const rawDesc = cols[2];
+      const rawSev = cols[3] ? cols[3].replace(/[`*]/g, '').trim().toLowerCase() : 'high';
+
+      let phase = 'Execution';
+      let techniqueId: string | undefined = undefined;
+
+      const phaseMatch = rawPhase.match(/\[([^\]]+)\]/);
+      if (phaseMatch) {
+        phase = phaseMatch[1].trim();
+      } else {
+        phase = rawPhase.replace(/[`*]/g, '').trim();
+      }
+
+      const techMatch = rawPhase.match(/(T\d{4}(?:\.\d{3})?)/);
+      if (techMatch) {
+        techniqueId = techMatch[1];
+      }
+
+      let title = rawDesc;
+      let description = '';
+      if (rawDesc.includes('<br>')) {
+        const parts = rawDesc.split('<br>');
+        title = parts[0].replace(/[*_]/g, '').trim();
+        description = parts.slice(1).join('\n').trim();
+      } else if (rawDesc.includes('\n')) {
+        const parts = rawDesc.split('\n');
+        title = parts[0].replace(/[*_]/g, '').trim();
+        description = parts.slice(1).join('\n').trim();
+      } else {
+        title = rawDesc.replace(/[*_]/g, '').trim();
+      }
+
+      const validSevs = ['critical', 'high', 'medium', 'low', 'info'];
+      const severity = validSevs.includes(rawSev) ? (rawSev as any) : 'high';
+
+      events.push({
+        id: `evt-${events.length + 1}`,
+        time: rawTime,
+        phase,
+        title,
+        description,
+        severity,
+        techniqueId
+      });
+    }
+  }
+
+  return events;
 };
 
 export const WriteupDetailView: React.FC<WriteupDetailViewProps> = ({
@@ -45,6 +138,18 @@ export const WriteupDetailView: React.FC<WriteupDetailViewProps> = ({
   const [copiedQuery, setCopiedQuery] = useState<string | null>(null);
   const [copiedIOC, setCopiedIOC] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const primaryCategory = getPrimaryCategory(writeup);
+  const allCategories = getAllCategories(writeup);
+  const secondaryCategories = allCategories.filter(c => c !== primaryCategory);
+  const dateInfo = formatWriteupDate(writeup);
+
+  const parsedTimelineEvents = useMemo(() => {
+    if (writeup.timeline && writeup.timeline.length > 0) {
+      return writeup.timeline;
+    }
+    return parseTimelineFromMarkdown(writeup.content || '');
+  }, [writeup]);
 
   const handleCopyQuery = (code: string, id: string) => {
     navigator.clipboard.writeText(code);
@@ -60,7 +165,8 @@ export const WriteupDetailView: React.FC<WriteupDetailViewProps> = ({
 
   const handleExportMarkdown = () => {
     const mdContent = `# ${writeup.code} - ${writeup.title}
-Domain: ${writeup.category}
+Domain: ${primaryCategory}
+Categories: ${allCategories.join(', ')}
 Platform: ${writeup.platform}
 Difficulty: ${writeup.difficulty}
 Date: ${writeup.date}
@@ -96,48 +202,122 @@ ${writeup.content}
   const prevWriteup = currentIndex > 0 ? allWriteups[currentIndex - 1] : null;
   const nextWriteup = currentIndex < allWriteups.length - 1 ? allWriteups[currentIndex + 1] : null;
 
-  // Compute navigation sections for the vertical progress bar
+  // Compute navigation sections for the vertical progress bar based strictly on markdown headings
   const progressSections: ProgressSectionItem[] = useMemo(() => {
-    const list: ProgressSectionItem[] = [
-      { id: 'writeup-header', label: 'Dossier Overview', number: '01' },
-      { id: 'writeup-tabs-bar', label: 'Investigation Tabs', number: '02' }
-    ];
+    const list: ProgressSectionItem[] = [];
 
     if (activeTab === 'dossier') {
-      const h2Matches = writeup.content ? writeup.content.match(/^##\s+(.+)$/gm) : null;
-      if (h2Matches && h2Matches.length > 0) {
-        h2Matches.slice(0, 10).forEach((match, idx) => {
-          const rawText = match.replace(/^##\s+/, '').trim();
-          const cleanText = rawText.replace(/[*_`\[\]]/g, '').replace(/\(http[^)]+\)/g, '').trim();
+      const headingMatches = writeup.content
+        ? Array.from(writeup.content.matchAll(/^(#{1,3})\s+(.+)$/gm))
+        : [];
+
+      if (headingMatches.length > 0) {
+        headingMatches.forEach((match, idx) => {
+          const rawText = match[2].trim();
+          const cleanText = rawText
+            .replace(/[*_`\[\]]/g, '')
+            .replace(/\(http[^)]+\)/g, '')
+            .trim();
+
           const slug = slugify(cleanText);
+
+          // If heading text already starts with numbering like "1. Case Overview" or "01. Case Overview"
+          const numMatch = cleanText.match(/^(\d+)[\.\-\)]\s*(.*)$/);
+          let itemNumber: string;
+          let itemLabel: string;
+
+          if (numMatch) {
+            itemNumber = numMatch[1].padStart(2, '0');
+            itemLabel = numMatch[2].trim() || cleanText;
+          } else {
+            itemNumber = String(idx + 1).padStart(2, '0');
+            itemLabel = cleanText;
+          }
+
           list.push({
             id: slug,
-            label: cleanText.length > 20 ? cleanText.substring(0, 18) + '...' : cleanText,
-            number: `0${idx + 3}`.slice(-2)
+            label: itemLabel.length > 24 ? itemLabel.substring(0, 22) + '...' : itemLabel,
+            number: itemNumber
           });
         });
-      } else {
-        list.push({ id: 'writeup-tab-card', label: 'Technical Analysis', number: '03' });
       }
-    } else if (activeTab === 'detection') {
-      list.push({ id: 'writeup-tab-card', label: 'SIEM Detections', number: '03' });
-    } else if (activeTab === 'iocs') {
-      list.push({ id: 'writeup-tab-card', label: 'IOC Artifacts', number: '03' });
-    } else if (activeTab === 'telemetry') {
-      list.push({ id: 'writeup-tab-card', label: 'Raw Telemetry', number: '03' });
     }
 
-    list.push({ id: 'writeup-footer-nav', label: 'Related Dossiers', number: `0${list.length + 1}`.slice(-2) });
     return list;
   }, [writeup, activeTab]);
+
+  const renderCalloutCard = (type: string, rawText: string, defaultChildren: React.ReactNode) => {
+    const t = type.toUpperCase();
+    const alertConfig: Record<string, { label: string; badge: string; border: string; bg: string; text: string; icon: React.ReactNode }> = {
+      WARNING: {
+        label: 'WARNING',
+        badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        border: 'border-l-4 border-l-amber-500 border-amber-500/30',
+        bg: 'bg-amber-950/20',
+        text: 'text-amber-200/90',
+        icon: <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+      },
+      NOTE: {
+        label: 'NOTE',
+        badge: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+        border: 'border-l-4 border-l-sky-500 border-sky-500/30',
+        bg: 'bg-sky-950/20',
+        text: 'text-sky-200/90',
+        icon: <Info className="w-4 h-4 text-sky-400 shrink-0" />
+      },
+      IMPORTANT: {
+        label: 'IMPORTANT',
+        badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+        border: 'border-l-4 border-l-purple-500 border-purple-500/30',
+        bg: 'bg-purple-950/20',
+        text: 'text-purple-200/90',
+        icon: <ShieldAlert className="w-4 h-4 text-purple-400 shrink-0" />
+      },
+      TIP: {
+        label: 'TIP',
+        badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        border: 'border-l-4 border-l-emerald-500 border-emerald-500/30',
+        bg: 'bg-emerald-950/20',
+        text: 'text-emerald-200/90',
+        icon: <Lightbulb className="w-4 h-4 text-emerald-400 shrink-0" />
+      },
+      CAUTION: {
+        label: 'CAUTION',
+        badge: 'bg-red-500/20 text-red-300 border-red-500/40',
+        border: 'border-l-4 border-l-red-500 border-red-500/30',
+        bg: 'bg-red-950/20',
+        text: 'text-red-200/90',
+        icon: <AlertOctagon className="w-4 h-4 text-red-400 shrink-0" />
+      }
+    };
+
+    const cfg = alertConfig[t] || alertConfig.WARNING;
+    const cleanBody = rawText.replace(/^\s*(?:>\s*)?\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i, '').trim();
+
+    return (
+      <div className={`my-5 p-4 sm:p-5 rounded-xl border ${cfg.border} ${cfg.bg} shadow-lg not-italic font-sans`}>
+        <div className="flex items-center gap-2 mb-2">
+          {cfg.icon}
+          <span className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold border ${cfg.badge}`}>
+            {cfg.label}
+          </span>
+        </div>
+        <div className={`text-sm sm:text-base ${cfg.text} leading-relaxed`}>
+          {cleanBody || defaultChildren}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <article className="writeup-detail-root">
       {/* Right Vertical Reading Progress Bar */}
-      <VerticalReadingProgress
-        sections={progressSections}
-        title="DOSSIER"
-      />
+      {progressSections.length > 0 && (
+        <VerticalReadingProgress
+          sections={progressSections}
+          title="DOSSIER"
+        />
+      )}
 
       <div className="writeup-detail-container">
         {/* Navigation & Breadcrumb */}
@@ -184,11 +364,17 @@ ${writeup.content}
           {/* Subtle amber backdrop glow */}
           <div className="writeup-detail-glow"></div>
 
-          {/* Badges row */}
+          {/* Badges row: Primary tag prominently displayed, secondary tags alongside */}
           <div className="writeup-badges-row">
             <span className="writeup-badge-primary">
-              {writeup.category}
+              {primaryCategory}
             </span>
+
+            {secondaryCategories.map(cat => (
+              <span key={cat} className="px-2 py-0.5 rounded bg-container-val border border-surface-val text-zinc-300 font-mono text-xs">
+                {cat}
+              </span>
+            ))}
 
             <span className="writeup-badge-code">
               {writeup.code}
@@ -228,11 +414,14 @@ ${writeup.content}
           {/* Meta & Tags */}
           <div className="writeup-detail-meta-bar">
             <div className="flex flex-wrap items-center gap-4">
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1.5 text-zinc-400 font-mono text-xs">
                 <Calendar className="w-3.5 h-3.5 text-primary-val" />
-                <span>{writeup.date}</span>
+                <span>{dateInfo.display}</span>
+                {dateInfo.isRecent && (
+                  <span className="text-zinc-500">({dateInfo.fullDate})</span>
+                )}
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1.5 text-zinc-400 font-mono text-xs">
                 <Clock className="w-3.5 h-3.5 text-primary-val" />
                 <span>{writeup.readTime}</span>
               </span>
@@ -295,33 +484,182 @@ ${writeup.content}
             {writeup.content?.trim() ? (
               <div className="prose prose-invert max-w-none space-y-6 text-main-val leading-relaxed">
                 <ReactMarkdown
-                  components={{
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  urlTransform={(url) => url}
+                  components={({
+                    h1: ({ node, children, ...props }) => {
+                      const text = extractNodeText(children);
+                      const slug = slugify(text);
+                      return (
+                        <h1
+                          id={slug}
+                          className="text-2xl sm:text-3xl font-bold font-sans text-zinc-100 border-b border-surface-val pb-3 mb-5 mt-4"
+                          {...props}
+                        >
+                          {children}
+                        </h1>
+                      );
+                    },
                     h2: ({ node, children, ...props }) => {
                       const text = extractNodeText(children);
                       const slug = slugify(text);
                       return (
                         <h2
                           id={slug}
-                          className="text-xl sm:text-2xl font-bold font-sans text-zinc-100 border-b border-surface-val pb-2 mt-8 mb-4 flex items-center gap-2"
+                          className="text-xl sm:text-2xl font-bold font-sans text-primary-val border-b border-surface-val/60 pb-2.5 mb-4 mt-8 flex items-center gap-2"
                           {...props}
                         >
                           {children}
                         </h2>
                       );
                     },
-                    h3: ({ node, ...props }) => (
-                      <h3 className="text-lg font-semibold font-sans text-primary-val mt-6 mb-3" {...props} />
+                    h3: ({ node, children, ...props }) => {
+                      const text = extractNodeText(children);
+                      const slug = slugify(text);
+                      return (
+                        <h3
+                          id={slug}
+                          className="text-lg sm:text-xl font-bold font-sans text-amber-400 mt-6 mb-3"
+                          {...props}
+                        >
+                          {children}
+                        </h3>
+                      );
+                    },
+                    p: ({ node, children, ...props }) => {
+                      const fullText = extractNodeText(children);
+                      const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i.exec(fullText);
+                      if (match) {
+                        return renderCalloutCard(match[1], fullText, children);
+                      }
+                      return (
+                        <p className="text-zinc-200 font-sans leading-relaxed mb-4 text-sm sm:text-base" {...props}>
+                          {children}
+                        </p>
+                      );
+                    },
+                    blockquote: ({ node, children, ...props }) => {
+                      const fullText = extractNodeText(children);
+                      const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i.exec(fullText);
+                      if (match) {
+                        return renderCalloutCard(match[1], fullText, children);
+                      }
+                      return (
+                        <blockquote className="my-5 pl-5 pr-4 py-3 bg-[#141418] border-l-4 border-amber-400 border-y border-r border-[#27272a] rounded-r-lg text-zinc-200 italic font-sans shadow-sm">
+                          <div className="flex items-start gap-3">
+                            <Quote className="w-4 h-4 text-amber-400 shrink-0 mt-1 not-italic" />
+                            <div className="flex-1 not-italic text-sm sm:text-base">{children}</div>
+                          </div>
+                        </blockquote>
+                      );
+                    },
+                    hr: ({ node, ...props }) => (
+                      <hr className="my-6 border-0 h-px bg-[#f59e0b] w-full" {...props} />
                     ),
-                    p: ({ node, ...props }) => (
-                      <p className="text-muted-val font-sans text-sm sm:text-base leading-relaxed mb-4" {...props} />
+                    table: ({ node, children, ...props }) => {
+                      const tableText = extractNodeText(children);
+                      const isTimeline = /Timestamp/i.test(tableText) && (/Phase/i.test(tableText) || /TTP/i.test(tableText));
+
+                      if (isTimeline && parsedTimelineEvents.length > 0) {
+                        return (
+                          <AttackTimelineViewer
+                            events={parsedTimelineEvents}
+                            title={writeup.timelineTitle || 'Attack Chronology & Forensic Timeline'}
+                            allowViewToggle={true}
+                            editableTitle={false}
+                          />
+                        );
+                      }
+
+                      return (
+                        <div className="my-6 overflow-x-auto rounded-xl border border-[#27272a] bg-[#0d0d10] shadow-lg">
+                          <table className="w-full text-left text-sm sm:text-base font-mono border-collapse" {...props}>
+                            {children}
+                          </table>
+                        </div>
+                      );
+                    },
+                    thead: ({ node, ...props }) => (
+                      <thead className="bg-[#18181c] border-b border-[#27272a] text-zinc-200" {...props} />
                     ),
+                    th: ({ node, ...props }) => (
+                      <th className="px-5 py-3 font-bold text-amber-400 uppercase text-xs sm:text-sm tracking-wider border-r border-[#27272a] last:border-r-0 whitespace-nowrap" {...props} />
+                    ),
+                    tbody: ({ node, ...props }) => (
+                      <tbody className="divide-y divide-[#27272a]" {...props} />
+                    ),
+                    tr: ({ node, ...props }) => (
+                      <tr className="hover:bg-[#18181c]/70 transition-colors even:bg-[#121215]/50" {...props} />
+                    ),
+                    td: ({ node, ...props }) => (
+                      <td className="px-5 py-3 text-zinc-200 border-r border-[#27272a] last:border-r-0 leading-relaxed font-sans text-sm sm:text-base" {...props} />
+                    ),
+                    input: ({ node, type, checked, ...props }) => {
+                      if (type === 'checkbox') {
+                        return (
+                          <input
+                            type="checkbox"
+                            checked={!!checked}
+                            readOnly
+                            className="w-4 h-4 rounded bg-black/80 border border-amber-400/60 text-amber-400 accent-amber-400 align-middle mr-2"
+                          />
+                        );
+                      }
+                      return <input type={type} {...props} />;
+                    },
+                    span: ({ node, style, className, children, ...props }: any) => {
+                      let parsedStyle: React.CSSProperties | undefined = undefined;
+                      if (typeof style === 'string') {
+                        parsedStyle = {};
+                        style.split(';').forEach(rule => {
+                          const [k, v] = rule.split(':');
+                          if (k && v) {
+                            const camelK = k.trim().replace(/-([a-z])/g, g => g[1].toUpperCase());
+                            (parsedStyle as any)[camelK] = v.trim();
+                          }
+                        });
+                      } else if (typeof style === 'object') {
+                        parsedStyle = style;
+                      }
+                      return (
+                        <span style={parsedStyle} className={className} {...props}>
+                          {children}
+                        </span>
+                      );
+                    },
+                    font: ({ node, color, children, ...props }: any) => {
+                      return <span style={{ color }} {...props}>{children}</span>;
+                    },
                     ul: ({ node, ...props }) => (
-                      <ul className="list-disc pl-5 space-y-2 text-muted-val text-sm sm:text-base my-3" {...props} />
+                      <ul className="list-disc pl-5 space-y-2 text-zinc-200 font-sans my-3 text-sm sm:text-base" {...props} />
                     ),
                     ol: ({ node, ...props }) => (
-                      <ol className="list-decimal pl-5 space-y-2 text-muted-val text-sm sm:text-base my-3" {...props} />
+                      <ol className="list-decimal pl-5 space-y-2 text-zinc-200 font-sans my-3 text-sm sm:text-base" {...props} />
                     ),
-                    li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
+                    li: ({ node, ...props }) => (
+                      <li className="leading-relaxed text-zinc-200 font-sans my-1 text-sm sm:text-base" {...props} />
+                    ),
+                    img: ({ node, src, alt, ...props }) => (
+                      <figure className="my-6 rounded-xl overflow-hidden border border-[#27272a] bg-[#121215] shadow-2xl p-2 group">
+                        <img
+                          {...props}
+                          src={src}
+                          alt={alt || 'Forensic Evidence Exhibit'}
+                          className="w-full h-auto rounded-lg object-contain max-h-[600px] mx-auto border border-[#27272a]/60 shadow-md transition-transform duration-200 group-hover:scale-[1.01]"
+                          loading="lazy"
+                        />
+                        <figcaption className="text-center font-mono text-xs text-zinc-400 py-2 px-3 bg-[#18181c] rounded-b-lg border-t border-[#27272a]/60 mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <span className="flex items-center gap-2">
+                            <Shield className="w-3.5 h-3.5 text-[#fbbf24]" />
+                            <span>Evidence: {alt || 'Forensic Evidence Exhibit'}</span>
+                          </span>
+                          <span className="text-[11px] text-zinc-500 font-mono">
+                            {src}
+                          </span>
+                        </figcaption>
+                      </figure>
+                    ),
                     code: ({ className, children, ...props }) => {
                       const isInline = !className && typeof children === 'string' && !children.includes('\n');
                       if (isInline) {
@@ -344,7 +682,7 @@ ${writeup.content}
                         />
                       );
                     }
-                  }}
+                  } as any)}
                 >
                   {writeup.content}
                 </ReactMarkdown>
@@ -394,16 +732,13 @@ ${writeup.content}
           </div>
         )}
 
-        {/* Tab 3: IOC Artifacts */}
+        {/* Tab 3: IOC Artifacts (Clean header without TLP:CLEAR // Verified Malicious) */}
         {activeTab === 'iocs' && (
           <div id="writeup-tab-card" className="rounded-xl bg-surface-val border border-surface-val overflow-hidden">
             <div className="p-4 bg-container-val border-b border-surface-val flex items-center justify-between">
               <h3 className="font-semibold text-zinc-100 font-sans text-sm">
                 Threat Artifacts & Indicators of Compromise
               </h3>
-              <span className="font-mono text-xs text-muted-val">
-                {writeup.iocs && writeup.iocs.length > 0 ? 'TLP:CLEAR // Verified Malicious' : 'STATUS: NO_EXTERNAL_IOCS'}
-              </span>
             </div>
 
             {writeup.iocs && writeup.iocs.length > 0 ? (
@@ -455,7 +790,7 @@ ${writeup.content}
           </div>
         )}
 
-        {/* Tab 4: Raw Telemetry */}
+        {/* Tab 4: Raw Telemetry (Clean header without FEED: VERIFIED) */}
         {activeTab === 'telemetry' && (
           <div id="writeup-tab-card" className="space-y-4">
             {writeup.rawTelemetry?.trim() ? (
@@ -463,9 +798,6 @@ ${writeup.content}
                 <div className="px-1 flex items-center justify-between">
                   <span className="font-mono text-xs text-muted-val">
                     Forensic Hex / Stream Capture Logs
-                  </span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-2xs font-semibold">
-                    FEED: VERIFIED
                   </span>
                 </div>
                 <TerminalCodeBlock
