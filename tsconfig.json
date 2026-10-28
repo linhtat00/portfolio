@@ -23,5 +23,13 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["writeup-cms", "node_modules", "dist"]
+  "include": [
+    "src",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "public",
+    "dist"
+  ]
 }

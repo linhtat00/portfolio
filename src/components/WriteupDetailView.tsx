@@ -732,7 +732,7 @@ ${writeup.content}
           </div>
         )}
 
-        {/* Tab 3: IOC Artifacts (Clean header without TLP:CLEAR // Verified Malicious) */}
+        {/* Tab 3: IOC Artifacts*/}
         {activeTab === 'iocs' && (
           <div id="writeup-tab-card" className="rounded-xl bg-surface-val border border-surface-val overflow-hidden">
             <div className="p-4 bg-container-val border-b border-surface-val flex items-center justify-between">
@@ -790,7 +790,7 @@ ${writeup.content}
           </div>
         )}
 
-        {/* Tab 4: Raw Telemetry (Clean header without FEED: VERIFIED) */}
+        {/* Tab 4: Raw Telemetry */}
         {activeTab === 'telemetry' && (
           <div id="writeup-tab-card" className="space-y-4">
             {writeup.rawTelemetry?.trim() ? (

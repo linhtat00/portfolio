@@ -65,7 +65,7 @@ export const WriteupOverviewView: React.FC<WriteupOverviewViewProps> = ({
             <span className="text-zinc-600 font-mono text-xs hidden sm:inline">/</span>
 
             <div className="font-mono text-xs text-muted-val truncate">
-              <span className="text-primary-val">~/linh@analysts:$</span> ls -la /writeups/repository
+              <span className="text-primary-val">~/linh@analyst:$</span> ls -la /writeups/repository
             </div>
           </div>
         </div>

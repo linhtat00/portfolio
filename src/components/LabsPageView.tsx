@@ -144,7 +144,7 @@ export const LabsPageView: React.FC<LabsPageViewProps> = ({
             <span className="text-zinc-600 font-mono text-xs hidden sm:inline">/</span>
 
             <div className="font-mono text-xs text-muted-val truncate">
-              <span className="text-primary-val">~/linh@soc-ranges:$</span>{' '}
+              <span className="text-primary-val">~/linh@analyst:$</span>{' '}
               {activeLab ? `cat /labs/${activeLab.slug}.spec` : 'ls -la /labs/projects'}
             </div>
           </div>
