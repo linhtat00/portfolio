@@ -6,7 +6,7 @@ export const testNewFunctionWriteup: Writeup = {
   code: "#IR-261021-2200",
   title: "test new function",
   category: "Memory Forensics",
-  categories: ["Memory Forensics"],
+  categories: ["Memory Forensics","Incident Response","Disk Forensics","OSINT"],
   platform: "Internal Range",
   difficulty: "MED",
   date: "Published Today",
